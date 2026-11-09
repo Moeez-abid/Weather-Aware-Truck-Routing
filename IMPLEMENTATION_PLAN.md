@@ -1,0 +1,138 @@
+# Weather-Aware Truck Routing: Implementation Plan
+
+React + Django app that helps a truck driver choose the safest route based on weather, load weight and travel time.
+
+**Deliverables:** GitHub repository, hosted application, 5–10 min Loom walkthrough.
+
+**Scoring:** 40% routes, weather, risk and recommendation logic · 40% UI, map and heatmap smoothness · 15% code quality · 5% docs and walkthrough. The brief says to prioritize correctness and clarity over extra features, so anything it doesn't ask for is left out.
+
+## Stack
+
+| Layer | Choice | Why |
+|---|---|---|
+| Backend | Django 5.2 LTS + Django REST Framework | Required by the brief. Stateless JSON API, API keys stay on the server |
+| Frontend | React + TypeScript + Vite | Required by the brief. Typed API contract |
+| Map | MapLibre GL JS + OpenFreeMap tiles | WebGL rendering, tiles need no API key |
+| Routing and geocoding | TomTom Routing and Search APIs | Real truck mode, vehicle weight, up to 5 alternatives, future `departAt` |
+| Weather | Open-Meteo forecast API | No key, hourly data, many locations per request |
+| Tests | pytest (backend), Vitest (frontend logic) | Risk and ranking rules are fully unit tested |
+| Hosting | Vercel (frontend) + Render (backend) | Simple deploys. Render's free tier sleeps, so wake it before the Loom or a review |
+
+Confirmed before choosing:
+
+- TomTom docs: `travelMode=truck`, `vehicleWeight` in kg, `maxAlternatives` 0–5, `departAt`. The docs warn that **fewer alternatives may be returned**, so the app needs a fallback (commit 5).
+- Open-Meteo live call: comma-separated coordinates return one result per location, `rain`, `showers` and `snowfall` come back in inches, wind in mph, and `timezone=auto` returns each location's timezone.
+
+Still to confirm with a real key or at deploy time:
+
+- TomTom guidance instructions expose cumulative time and distance (used for checkpoint ETAs, commit 6).
+- How Open-Meteo counts multi-location requests against its 10,000 calls/day limit (commit 7).
+- Current TomTom free-tier numbers, since its pricing changed in July 2026.
+
+## Core logic
+
+### Risk classification
+
+Each checkpoint gets a level for wind, rain and snow. The load rules are applied to wind, and the worst of the three is the checkpoint's level.
+
+| Level (score) | Wind mph | Rain in/hr | Snow in/hr |
+|---|---|---|---|
+| Low (0) | < 25 | < 0.10 | < 0.5 |
+| Moderate (1) | 25 to < 35 | 0.10 to < 0.25 | 0.5 to < 1.0 |
+| High (2) | 35 to < 45 | 0.25 to < 0.50 | 1.0 to < 2.0 |
+| Severe (3) | 45 to < 55 | 0.50 to 1.00 | 2.0 to 3.0 |
+| No Travel (4) | ≥ 55 | > 1.00 | > 3.0 |
+
+Load rules:
+
+- Wind ≥ 55 mph: No Travel for any load.
+- Wind 45–54 mph and load > 30,000 lb: No Travel.
+- Wind 35–44 mph and load > 40,000 lb: Severe.
+
+### Weather at the truck's arrival time
+
+- Forecast is looked up at the checkpoint's **ETA**, not the departure time.
+- Rain is `rain + showers`, because Open-Meteo reports convective showers separately and using `rain` alone would under-report storms.
+- Precipitation uses the hour that contains the ETA. Wind is interpolated between hours.
+- All times are handled in UTC. Departure is entered in the origin's local time, and ETAs are shown in each checkpoint's local time.
+- Missing weather is **never treated as Low**. The request fails with a clear error, or the departure is rejected if the trip runs past the forecast window.
+
+### Checkpoints and miles
+
+- Checkpoints sit at the origin, every N miles (10, 25 or 50, chosen by the user), and the destination.
+- Each checkpoint covers half the gap on either side, so the per-level miles add up exactly to the route length.
+- ETAs follow the route's own timing between maneuvers rather than assuming constant speed. Distance-proportional timing is the fallback only if TomTom's data doesn't support this.
+
+### Recommendation
+
+Routes are compared strictly in this order, and the first difference decides:
+
+1. Fewest No Travel miles (see assumption 3)
+2. Fewest Severe miles
+3. Fewest High miles
+4. Lowest distance-weighted average risk (rounded to 2 decimals)
+5. Shortest travel time
+
+If every route has No Travel miles, the app says no route is safe at that departure instead of presenting one as recommended.
+
+### Three routes
+
+Request 2 alternatives from TomTom. If fewer than 3 distinct routes come back, re-request through a waypoint offset to each side of the trip's midpoint and keep routes that differ meaningfully from the others. If 3 still can't be found (some short trips have no real alternative), show what exists and say so.
+
+### Heatmap (the performance-critical piece)
+
+- Backend builds a grid along the corridor of all routes, spaced evenly in Web Mercator, and sends the risk level per cell for hours 0–48 as one compact payload. Risk is calculated only on the backend, using the same engine and the entered load.
+- Frontend draws all 49 frames to bitmaps once, up front. Moving the slider only swaps which bitmap is drawn to a MapLibre canvas source: **no network request and no GeoJSON reprocessing per step**.
+- Grid cells snap to a coarse lattice (about 0.25°) and are cached, which keeps Open-Meteo usage within limits and lets routes share cells.
+- The heatmap loads separately from the routes, so routes appear first.
+- Target: under 16 ms per slider step, measured in Chrome's performance panel in commit 14.
+
+## API
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/health` | Health check |
+| `GET /api/geocode?q=` | Address autocomplete proxy |
+| `POST /api/trips/plan` | Origin, destination, departure, load, interval → routes, checkpoints, summaries, recommendation |
+| `POST /api/heatmap` | Simplified route geometry, departure, load → grid and 49 hourly frames |
+
+## Commit-by-commit plan
+
+Each step leaves the project working, with tests passing where there is logic to test.
+
+| # | Commit | Contents |
+|---|---|---|
+| 1 | `chore: initialize repository` | `.gitignore`, `.env.example`, README stub, this plan |
+| 2 | `feat(backend): scaffold Django API` | Project, DRF, env-based settings, CORS, health endpoint, pytest |
+| 3 | `feat(risk): add weather risk engine` | Thresholds, load rules, tests on every boundary value |
+| 4 | `feat(risk): add route recommendation` | Mile totals, average risk, ranking, tie-break tests |
+| 5 | `feat(routing): add TomTom routing and geocoding` | Clients, 3-route fallback, de-duplication, tests on saved responses |
+| 6 | `feat(routing): add checkpoint sampling and ETAs` | 10/25/50-mile sampling along the route, ETA calculation, tests |
+| 7 | `feat(weather): add Open-Meteo client` | Batched requests, caching, retries, ETA lookup, tests |
+| 8 | `feat(api): add trip planning endpoint` | Ties it together, validation, clear error responses |
+| 9 | `feat(api): add corridor heatmap endpoint` | Grid generation, 49 hourly frames, compact payload |
+| 10 | `feat(frontend): scaffold React app and map` | Vite, TypeScript, MapLibre, typed API client, layout |
+| 11 | `feat(frontend): add trip form` | Autocomplete, departure, load, interval, validation |
+| 12 | `feat(frontend): show routes and checkpoints` | Route lines, risk-colored checkpoints, ETAs, summaries, recommended route |
+| 13 | `feat(frontend): add heatmap and forecast slider` | Bitmap frames, canvas layer, 0–48 h slider, legend |
+| 14 | `perf(frontend): polish states and performance` | Loading, error and No Travel states, mobile layout, measured slider timing |
+| 15 | `chore: add deployment config` | Vercel and Render config, production settings |
+| 16 | `docs: complete README` | Setup, architecture, assumptions, hosted link, Loom link |
+
+**Workflow for each step:** I implement and test it, stage only that step's files with `git add`, and give you the exact commit and push commands. I never commit or push. I start the next step after you confirm.
+
+## Assumptions (also documented in the README)
+
+1. **"Every 10 / 25 / 50 miles"** is a user-selectable interval, defaulting to 25.
+2. **Band edges:** the rain and snow tables overlap at their edges (for example 0.25 is in both Moderate and High). The value moves to the higher band. The exceptions are 1.00 in/hr rain and 3.0 in/hr snow, which stay Severe because No Travel is written as strictly greater.
+3. **No Travel ranks worse than Severe.** The brief's ranking doesn't mention it, but a route with No Travel miles can't be better than one with only Severe miles.
+4. **Wind** means sustained wind at 10 m, not gusts.
+5. **Slider hour 0 is the departure time.** The label shows the actual date and time.
+6. **Load rules use the entered load weight.** For truck-legal routing, TomTom receives load plus an assumed 33,000 lb empty truck, converted to kg.
+7. **ETAs are drive time only.** Mandatory driver rest breaks aren't modeled.
+
+## Needed from you
+
+- An empty GitHub repository (no README or license), before commit 1 is pushed.
+- A TomTom API key from developer.tomtom.com, before commit 5. It goes in your local `.env`, which is never committed.
+- Vercel and Render accounts, before commit 15.
