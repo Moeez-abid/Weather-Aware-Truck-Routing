@@ -16,6 +16,7 @@ import {
   type TripFormValues,
 } from "./formValues";
 import { PlaceField } from "./PlaceField";
+import type { PlaceNames } from "./useTripPlan";
 
 const INTERVALS: CheckpointInterval[] = [10, 25, 50];
 const FIELD_ORDER: TripFormField[] = ["origin", "destination", "departure", "load", "interval"];
@@ -49,7 +50,7 @@ function useOriginTimeZone(origin: Place | null): string | null {
 }
 
 interface TripFormProps {
-  onSubmit: (trip: TripRequest) => void;
+  onSubmit: (trip: TripRequest, places: PlaceNames) => void;
   isSubmitting: boolean;
   serverError: ApiError | null;
 }
@@ -93,7 +94,10 @@ export function TripForm({ onSubmit, isSubmitting, serverError }: TripFormProps)
       focusFirstError(found);
       return;
     }
-    onSubmit(toTripRequest(values));
+    onSubmit(toTripRequest(values), {
+      origin: values.origin!.label,
+      destination: values.destination!.label,
+    });
   }
 
   const now = new Date();
