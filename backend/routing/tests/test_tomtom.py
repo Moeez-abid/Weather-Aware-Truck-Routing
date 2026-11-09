@@ -87,6 +87,7 @@ def test_route_request_asks_for_a_truck_route() -> None:
     assert request.url.params["travelMode"] == "truck"
     assert request.url.params["vehicleCommercial"] == "true"
     assert request.url.params["vehicleWeight"] == "33112"
+    assert request.url.params["vehicleMaxSpeed"] == "105"
     assert request.url.params["maxAlternatives"] == "2"
     assert request.url.params["departAt"] == "2026-11-10T15:30:00Z"
     assert request.url.params["instructionsType"] == "coded"
@@ -157,6 +158,16 @@ def test_malformed_routes_raise_provider_error(body: dict[str, Any]) -> None:
 def test_route_without_matching_timing_is_rejected() -> None:
     body = fixture("tomtom_routes")
     body["routes"][0]["guidance"]["instructions"].pop()
+
+    with pytest.raises(ProviderError):
+        route_call(client_returning(body))
+
+
+@pytest.mark.parametrize("field", ["pointIndex", "routeOffsetInMeters", "travelTimeInSeconds"])
+def test_route_timing_that_goes_backwards_is_rejected(field: str) -> None:
+    body = fixture("tomtom_routes")
+    instructions = body["routes"][0]["guidance"]["instructions"]
+    instructions[2][field] = instructions[1][field] - 1
 
     with pytest.raises(ProviderError):
         route_call(client_returning(body))

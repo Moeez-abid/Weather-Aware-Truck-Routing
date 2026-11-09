@@ -25,7 +25,6 @@ Confirmed before choosing:
 
 Still to confirm with a real key or at deploy time:
 
-- TomTom guidance instructions expose cumulative time and distance (used for checkpoint ETAs, commit 6).
 - How Open-Meteo counts multi-location requests against its 10,000 calls/day limit (commit 7).
 - Current TomTom free-tier numbers, since its pricing changed in July 2026.
 
@@ -61,7 +60,7 @@ Load rules:
 
 - Checkpoints sit at the origin, every N miles (10, 25 or 50, chosen by the user), and the destination.
 - Each checkpoint covers half the gap on either side, so the per-level miles add up exactly to the route length.
-- ETAs follow the route's own timing between maneuvers rather than assuming constant speed. Distance-proportional timing is the fallback only if TomTom's data doesn't support this.
+- ETAs follow the route's own timing between maneuvers rather than assuming constant speed.
 
 ### Recommendation
 
@@ -130,6 +129,8 @@ Each step leaves the project working, with tests passing where there is logic to
 5. **Slider hour 0 is the departure time.** The label shows the actual date and time.
 6. **Load rules use the entered load weight.** For truck-legal routing, TomTom receives load plus an assumed 33,000 lb empty truck, converted to kg.
 7. **ETAs are drive time only.** Mandatory driver rest breaks aren't modeled.
+8. **Trucks are capped at 65 mph.** Without a cap, TomTom assumes road speed limits (up to 78 mph on tested routes), which would read the weather too early on long trips.
+9. **Address search covers the US, Canada and Mexico**, matching the brief's miles and pounds.
 
 ## Needed from you
 

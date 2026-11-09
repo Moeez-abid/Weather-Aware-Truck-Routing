@@ -8,6 +8,7 @@ exception text.
 import logging
 from datetime import UTC, datetime
 from functools import lru_cache
+from itertools import pairwise
 from typing import Any
 from urllib.parse import quote
 
@@ -26,6 +27,10 @@ NO_ROUTE_CODES = {"NO_ROUTE_FOUND", "MAP_MATCHING_FAILURE"}
 # TomTom needs the truck's total weight for road limits, but the driver enters only the load.
 EMPTY_TRUCK_LB = 33_000
 KG_PER_LB = 0.45359237
+
+# Without a cap TomTom assumes road speed limits, up to 78 mph on the routes tested. That
+# puts the truck at each checkpoint too early, so weather would be read for the wrong hour.
+TRUCK_MAX_SPEED_KMH = 105
 
 
 def gross_weight_kg(load_lb: float) -> int:
@@ -64,6 +69,13 @@ def _parse_route(raw: dict[str, Any]) -> Route:
     )
     if len(timing) < 2 or timing[0].point_index != 0 or timing[-1].point_index != len(points) - 1:
         raise ValueError("Route timing does not span the route geometry.")
+    if any(
+        later.point_index < earlier.point_index
+        or later.distance_m < earlier.distance_m
+        or later.elapsed_s < earlier.elapsed_s
+        for earlier, later in pairwise(timing)
+    ):
+        raise ValueError("Route timing must not go backwards.")
 
     return Route(
         points=points,
@@ -113,6 +125,7 @@ class TomTomClient:
                 "travelMode": "truck",
                 "vehicleCommercial": "true",
                 "vehicleWeight": gross_weight_kg(load_lb),
+                "vehicleMaxSpeed": TRUCK_MAX_SPEED_KMH,
                 "departAt": _format_departure(departure),
                 "maxAlternatives": max_alternatives,
                 "traffic": "true",

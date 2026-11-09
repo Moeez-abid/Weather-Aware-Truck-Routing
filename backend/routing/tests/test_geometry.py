@@ -1,7 +1,12 @@
 import pytest
 
 from routing.domain import LatLon
-from routing.geometry import destination_point, haversine_m, initial_bearing_deg
+from routing.geometry import (
+    cumulative_distances_m,
+    destination_point,
+    haversine_m,
+    initial_bearing_deg,
+)
 
 
 def test_one_degree_of_latitude_is_about_111_km() -> None:
@@ -10,6 +15,12 @@ def test_one_degree_of_latitude_is_about_111_km() -> None:
 
 def test_distance_to_the_same_point_is_zero() -> None:
     assert haversine_m(LatLon(40, -100), LatLon(40, -100)) == 0
+
+
+def test_cumulative_distances_add_up_along_the_points() -> None:
+    points = [LatLon(0, 0), LatLon(1, 0), LatLon(1, 0), LatLon(3, 0)]
+
+    assert cumulative_distances_m(points) == pytest.approx([0, 111_195, 111_195, 333_585], abs=3)
 
 
 @pytest.mark.parametrize(

@@ -1,4 +1,6 @@
 import math
+from collections.abc import Sequence
+from itertools import accumulate, pairwise
 
 from routing.domain import LatLon
 
@@ -11,6 +13,10 @@ def haversine_m(a: LatLon, b: LatLon) -> float:
         math.cos(lat1) * math.cos(lat2) * math.sin((lon2 - lon1) / 2) ** 2
     )
     return 2 * EARTH_RADIUS_M * math.asin(math.sqrt(h))
+
+
+def cumulative_distances_m(points: Sequence[LatLon]) -> list[float]:
+    return [0.0, *accumulate(haversine_m(a, b) for a, b in pairwise(points))]
 
 
 def initial_bearing_deg(a: LatLon, b: LatLon) -> float:
