@@ -1,4 +1,4 @@
-import type { Heatmap, HeatmapRequest, Place, TripPlan, TripRequest } from "./types";
+import type { Heatmap, HeatmapRequest, Place, Position, TripPlan, TripRequest } from "./types";
 
 /** A failed request. `message` is safe to show to the user. */
 export class ApiError extends Error {
@@ -64,6 +64,14 @@ export async function searchPlaces(query: string, signal?: AbortSignal): Promise
     { signal },
   );
   return results;
+}
+
+export async function getTimeZone(position: Position, signal?: AbortSignal): Promise<string> {
+  const { timezone } = await request<{ timezone: string }>(
+    `/timezone?lat=${position.lat}&lon=${position.lon}`,
+    { signal },
+  );
+  return timezone;
 }
 
 export function planTrip(trip: TripRequest, signal?: AbortSignal): Promise<TripPlan> {

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, checkHealth, fetchHeatmap, planTrip, searchPlaces } from "./client";
+import { ApiError, checkHealth, fetchHeatmap, getTimeZone, planTrip, searchPlaces } from "./client";
 import type { HeatmapRequest, TripRequest } from "./types";
 
 const fetchMock = vi.fn<typeof fetch>();
@@ -64,6 +64,13 @@ describe("requests", () => {
 
     await expect(searchPlaces("A&B, TX?")).resolves.toEqual(places);
     expect(lastCall().url).toBe("https://api.example.test/api/geocode?q=A%26B%2C%20TX%3F");
+  });
+
+  it("asks for the timezone of a position", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ timezone: "America/Chicago" }));
+
+    await expect(getTimeZone({ lat: 41.88, lon: -87.63 })).resolves.toBe("America/Chicago");
+    expect(lastCall().url).toBe("https://api.example.test/api/timezone?lat=41.88&lon=-87.63");
   });
 
   it("posts the trip as JSON", async () => {

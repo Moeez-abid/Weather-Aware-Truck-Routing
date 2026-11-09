@@ -14,6 +14,9 @@
   --color-ink-muted: #5a5d62;
   --color-hairline: #c9c7c4;
   --color-seal: #dcddf3;
+  --color-field: #fbfbfc;
+  --color-ink-hover: #33363a;
+  --color-alert: #a8201a;
 
   --text-label: 0.75rem;
   --text-label--line-height: 1rem;

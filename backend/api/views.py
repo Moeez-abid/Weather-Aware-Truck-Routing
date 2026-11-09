@@ -6,12 +6,13 @@ from rest_framework.response import Response
 
 from api.serializers import (
     HeatmapRequestSerializer,
+    PositionSerializer,
     TripPlanRequestSerializer,
     heatmap_payload,
     to_trip_request,
     trip_plan_payload,
 )
-from routing.domain import NoRouteError, RoutingError
+from routing.domain import LatLon, NoRouteError, RoutingError
 from routing.tomtom import get_tomtom_client
 from trips.heatmap import build_heatmap
 from trips.planner import InvalidDepartureError, plan_trip
@@ -52,6 +53,21 @@ def geocode(request: Request) -> Response:
             ]
         }
     )
+
+
+@api_view(["GET"])
+def origin_timezone(request: Request) -> Response:
+    """Return a position's timezone, so the form can show and default to the origin's local time."""
+    serializer = PositionSerializer(data=request.query_params)
+    if not serializer.is_valid():
+        return _invalid_request(serializer.errors)
+
+    try:
+        forecast = get_weather_client().forecasts([LatLon(**serializer.validated_data)])[0]
+    except WeatherError as error:
+        return Response({"error": str(error)}, status=502)
+
+    return Response({"timezone": forecast.timezone})
 
 
 @api_view(["POST"])

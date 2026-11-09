@@ -95,6 +95,7 @@ Request 2 alternatives from TomTom. If fewer than 3 distinct routes come back, r
 |---|---|
 | `GET /api/health` | Health check |
 | `GET /api/geocode?q=` | Address autocomplete proxy |
+| `GET /api/timezone?lat=&lon=` | The origin's timezone, so the form can show and default to its local time |
 | `POST /api/trips/plan` | Origin, destination, departure, load, interval → routes, checkpoints, summaries, recommendation |
 | `POST /api/heatmap` | Route corridor lines from the trip plan, departure, load → grid and 49 hourly frames |
 
