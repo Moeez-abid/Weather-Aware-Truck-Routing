@@ -6,6 +6,8 @@ from routing.geometry import (
     destination_point,
     haversine_m,
     initial_bearing_deg,
+    mercator_latitude,
+    mercator_y,
     simplify_path,
 )
 
@@ -102,3 +104,17 @@ def test_simplify_keeps_corners_on_both_sides_of_the_widest_one(peaks: tuple[int
     points = [LatLon(0, 0), LatLon(peaks[0], 1), LatLon(0, 2), LatLon(peaks[1], 3), LatLon(0, 4)]
 
     assert simplify_path(points, 0.0001) == points
+
+
+@pytest.mark.parametrize(
+    ("lat", "meters"), [(0, 0), (45, 5_621_521.5), (-45, -5_621_521.5), (60, 8_399_737.9)]
+)
+def test_mercator_projection_matches_web_mercator(lat: float, meters: float) -> None:
+    meters_per_degree = 20_037_508.34 / 180
+
+    assert mercator_y(lat) * meters_per_degree == pytest.approx(meters, abs=1)
+
+
+@pytest.mark.parametrize("lat", [-80, -33.3, 0, 12.5, 40, 71])
+def test_mercator_latitude_reverses_the_projection(lat: float) -> None:
+    assert mercator_latitude(mercator_y(lat)) == pytest.approx(lat)

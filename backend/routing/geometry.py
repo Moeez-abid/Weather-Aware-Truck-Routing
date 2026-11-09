@@ -66,3 +66,12 @@ def simplify_path(points: Sequence[LatLon], tolerance_deg: float) -> list[LatLon
             sections += [(first, farthest), (farthest, last)]
 
     return [point for point, kept in zip(points, keep, strict=True) if kept]
+
+
+def mercator_y(lat: float) -> float:
+    """Project a latitude to Web Mercator, in units where one degree of longitude is 1."""
+    return math.degrees(math.log(math.tan(math.pi / 4 + math.radians(lat) / 2)))
+
+
+def mercator_latitude(y: float) -> float:
+    return math.degrees(2 * math.atan(math.exp(math.radians(y))) - math.pi / 2)

@@ -1,16 +1,29 @@
+from typing import Any
+
 from rest_framework.decorators import api_view
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from api.serializers import TripPlanRequestSerializer, to_trip_request, trip_plan_payload
+from api.serializers import (
+    HeatmapRequestSerializer,
+    TripPlanRequestSerializer,
+    heatmap_payload,
+    to_trip_request,
+    trip_plan_payload,
+)
 from routing.domain import NoRouteError, RoutingError
 from routing.tomtom import get_tomtom_client
+from trips.heatmap import build_heatmap
 from trips.planner import InvalidDepartureError, plan_trip
 from weather.forecast import ForecastUnavailableError, WeatherError
 from weather.open_meteo import get_weather_client
 
 GEOCODE_MIN_QUERY_LENGTH = 2
 GEOCODE_MAX_QUERY_LENGTH = 200
+
+
+def _invalid_request(errors: Any) -> Response:
+    return Response({"error": "Please check the trip details.", "fields": errors}, status=400)
 
 
 @api_view(["GET"])
@@ -45,9 +58,7 @@ def geocode(request: Request) -> Response:
 def trip_plan(request: Request) -> Response:
     serializer = TripPlanRequestSerializer(data=request.data)
     if not serializer.is_valid():
-        return Response(
-            {"error": "Please check the trip details.", "fields": serializer.errors}, status=400
-        )
+        return _invalid_request(serializer.errors)
 
     try:
         plan = plan_trip(
@@ -61,3 +72,18 @@ def trip_plan(request: Request) -> Response:
         return Response({"error": str(error)}, status=502)
 
     return Response(trip_plan_payload(plan))
+
+
+@api_view(["POST"])
+def heatmap(request: Request) -> Response:
+    serializer = HeatmapRequestSerializer(data=request.data)
+    if not serializer.is_valid():
+        return _invalid_request(serializer.errors)
+
+    data = serializer.validated_data
+    try:
+        result = build_heatmap(data["routes"], data["departure"], data["load_lb"], get_weather_client())
+    except WeatherError as error:
+        return Response({"error": str(error)}, status=502)
+
+    return Response(heatmap_payload(result))

@@ -82,7 +82,8 @@ Request 2 alternatives from TomTom. If fewer than 3 distinct routes come back, r
 
 - Backend builds a grid along the corridor of all routes, spaced evenly in Web Mercator, and sends the risk level per cell for hours 0–48 as one compact payload. Risk is calculated only on the backend, using the same engine and the entered load.
 - Frontend draws all 49 frames to bitmaps once, up front. Moving the slider only swaps which bitmap is drawn to a MapLibre canvas source: **no network request and no GeoJSON reprocessing per step**.
-- Grid cells snap to a coarse lattice (about 0.25°) and are cached, which keeps Open-Meteo usage within limits and lets routes share cells.
+- Grid cells sit on a fixed lattice and forecasts are cached, so trips can share cells. Each cell costs one Open-Meteo call, so the finest lattice (0.125° to 2°) that fits within 300 cells is used: short trips get a detailed grid and cross-country trips a coarser one.
+- Each frame is a string with one character per corridor cell, so all 49 frames come to about 10 KB. Hours the forecast doesn't reach are marked and left blank on the map, never shown as Low.
 - The heatmap loads separately from the routes, so routes appear first.
 - Target: under 16 ms per slider step, measured in Chrome's performance panel in commit 14.
 
@@ -93,7 +94,7 @@ Request 2 alternatives from TomTom. If fewer than 3 distinct routes come back, r
 | `GET /api/health` | Health check |
 | `GET /api/geocode?q=` | Address autocomplete proxy |
 | `POST /api/trips/plan` | Origin, destination, departure, load, interval → routes, checkpoints, summaries, recommendation |
-| `POST /api/heatmap` | Simplified route geometry, departure, load → grid and 49 hourly frames |
+| `POST /api/heatmap` | Route corridor lines from the trip plan, departure, load → grid and 49 hourly frames |
 
 ## Commit-by-commit plan
 
@@ -133,6 +134,7 @@ Each step leaves the project working, with tests passing where there is logic to
 9. **Address search covers the US, Canada and Mexico**, matching the brief's miles and pounds.
 10. **Forecasts cover 14 days from today.** A trip that would still be driving after that is rejected rather than scored with missing weather.
 11. **Departures up to 15 minutes in the past are accepted,** because the form defaults to the current time. Anything older is rejected.
+12. **Heatmap detail depends on trip length,** to stay within the free weather API's limits. Cells range from about 7 miles on short trips to about 100 miles coast to coast.
 
 ## Needed from you
 

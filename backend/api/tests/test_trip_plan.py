@@ -9,7 +9,7 @@ import pytest
 from django.http import HttpResponse
 from django.test import Client
 
-from routing.domain import LatLon, NoRouteError, ProviderError
+from routing.domain import LatLon, NoRouteError, ProviderError, Route, TimingPoint
 from trips.tests.helpers import FakeRouter, FakeWeather, forecast_from, straight_route
 from weather.forecast import ForecastUnavailableError, LocationForecast, WeatherError
 
@@ -102,6 +102,21 @@ def test_geometry_is_longitude_first_and_simplified() -> None:
     geometry = post(body()).json()["routes"][0]["geometry"]
 
     assert geometry == [[-100.0, 40.0], [-95.0, 40.0]]
+
+
+@pytest.mark.usefixtures("weather")
+def test_corridor_is_much_lighter_than_the_drawn_line(router: MagicMock) -> None:
+    # Bends of about 0.005 degrees: visible on the map but irrelevant to the heatmap grid.
+    points = tuple(LatLon(40 + (i % 2) * 0.005, -100 + i * 0.05) for i in range(101))
+    length = 60 * 1609.344
+    router.return_value = FakeRouter(
+        [Route(points, length, 7200, (TimingPoint(0, 0, 0), TimingPoint(100, length, 7200)))]
+    )
+
+    route = post(body()).json()["routes"][0]
+
+    assert len(route["geometry"]) == 101
+    assert route["corridor"] == [[-100.0, 40.0], [-95.0, 40.0]]
 
 
 @pytest.mark.usefixtures("router")
