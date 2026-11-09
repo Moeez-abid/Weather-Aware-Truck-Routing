@@ -13,6 +13,7 @@ from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
 from itertools import batched, pairwise
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import httpx
 from django.core.cache import cache
@@ -65,6 +66,8 @@ def _parse_location(raw: dict[str, Any]) -> LocationForecast:
             raise ValueError("Forecast series must match the forecast hours.")
         if any(value is not None and not value >= 0 for value in series):
             raise ValueError("Forecast values must not be negative.")
+
+    ZoneInfo(raw["timezone"])  # Raises for a name that could not be used to show local times.
 
     return LocationForecast(
         timezone=raw["timezone"],

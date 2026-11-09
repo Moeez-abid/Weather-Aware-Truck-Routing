@@ -338,6 +338,7 @@ def test_rate_limit_tells_the_user_to_wait() -> None:
         location(snowfall=[-0.1, 0.0]),
         location(rain=["wet", 0.0]),
         {"hourly": location()["hourly"]},
+        {**location(), "timezone": "Mars/Olympus_Mons"},
     ],
 )
 def test_malformed_responses_raise_weather_error(body: Any) -> None:

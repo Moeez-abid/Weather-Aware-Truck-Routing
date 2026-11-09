@@ -132,6 +132,7 @@ Each step leaves the project working, with tests passing where there is logic to
 8. **Trucks are capped at 65 mph.** Without a cap, TomTom assumes road speed limits (up to 78 mph on tested routes), which would read the weather too early on long trips.
 9. **Address search covers the US, Canada and Mexico**, matching the brief's miles and pounds.
 10. **Forecasts cover 14 days from today.** A trip that would still be driving after that is rejected rather than scored with missing weather.
+11. **Departures up to 15 minutes in the past are accepted,** because the form defaults to the current time. Anything older is rejected.
 
 ## Needed from you
 

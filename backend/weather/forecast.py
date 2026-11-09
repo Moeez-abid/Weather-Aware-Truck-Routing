@@ -21,7 +21,9 @@ def _value(series: Sequence[float | None], index: int) -> float:
     # Missing weather must stop the calculation, because treating it as calm would report Low risk.
     if 0 <= index < len(series) and (value := series[index]) is not None:
         return value
-    raise ForecastUnavailableError("The weather forecast does not cover this time.")
+    raise ForecastUnavailableError(
+        "The weather forecast does not cover the whole trip. Try an earlier departure."
+    )
 
 
 @dataclass(frozen=True, slots=True)

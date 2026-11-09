@@ -38,3 +38,31 @@ def destination_point(start: LatLon, bearing_deg: float, distance_m: float) -> L
         math.cos(angular) - math.sin(lat1) * math.sin(lat2),
     )
     return LatLon(math.degrees(lat2), (math.degrees(lon2) + 540) % 360 - 180)
+
+
+def simplify_path(points: Sequence[LatLon], tolerance_deg: float) -> list[LatLon]:
+    """Drop points lying within the tolerance of the kept line (Ramer-Douglas-Peucker)."""
+    if len(points) < 3:
+        return list(points)
+
+    keep = [True, *([False] * (len(points) - 2)), True]
+    sections = [(0, len(points) - 1)]
+    while sections:
+        first, last = sections.pop()
+        start, end = points[first], points[last]
+        run, rise = end.lon - start.lon, end.lat - start.lat
+        length_squared = run * run + rise * rise
+
+        farthest_squared, farthest = tolerance_deg * tolerance_deg, None
+        for index in range(first + 1, last):
+            x, y = points[index].lon - start.lon, points[index].lat - start.lat
+            along = max(0.0, min(1.0, (x * run + y * rise) / length_squared)) if length_squared else 0.0
+            distance_squared = (x - along * run) ** 2 + (y - along * rise) ** 2
+            if distance_squared > farthest_squared:
+                farthest_squared, farthest = distance_squared, index
+
+        if farthest is not None:
+            keep[farthest] = True
+            sections += [(first, farthest), (farthest, last)]
+
+    return [point for point, kept in zip(points, keep, strict=True) if kept]
