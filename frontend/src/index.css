@@ -1,0 +1,74 @@
+@import "tailwindcss";
+@import "@fontsource-variable/host-grotesk/index.css";
+@import "@fontsource-variable/geist-mono/index.css";
+@import "maplibre-gl/dist/maplibre-gl.css";
+
+@theme {
+  --font-sans: "Host Grotesk Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, monospace;
+
+  --color-ground: #f5f4f6;
+  --color-ground-warm: #faf6f5;
+  --color-ground-cool: #eef3ef;
+  --color-ink: #16181a;
+  --color-ink-muted: #5a5d62;
+  --color-hairline: #c9c7c4;
+  --color-seal: #dcddf3;
+
+  --text-label: 0.75rem;
+  --text-label--line-height: 1rem;
+  --text-label--letter-spacing: 0.1em;
+  --text-body: 1.0625rem;
+  --text-body--line-height: 1.55;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    background-color: var(--color-ground);
+    /* The sheet drifts warm and cool at its edges, so it reads as paper rather than a flat fill. */
+    background-image:
+      radial-gradient(60rem 40rem at 0% 0%, var(--color-ground-warm), transparent 70%),
+      radial-gradient(60rem 40rem at 100% 100%, var(--color-ground-cool), transparent 70%);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: "tnum";
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 2px;
+  }
+}
+
+@utility dot-matrix {
+  background-image: radial-gradient(circle, var(--color-hairline) 1px, transparent 1.5px);
+  background-size: 12px 12px;
+}
+
+/* MapLibre's controls, redrawn in the sheet's square, hairline language. */
+.maplibregl-ctrl-group:not(:empty) {
+  border: 1px solid var(--color-hairline);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.maplibregl-ctrl-group button {
+  width: 2.25rem;
+  height: 2.25rem;
+}
+
+.maplibregl-ctrl-group button + button {
+  border-top-color: var(--color-hairline);
+}
+
+.maplibregl-ctrl-attrib {
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+}

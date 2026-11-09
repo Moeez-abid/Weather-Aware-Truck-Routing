@@ -12,7 +12,9 @@ React + Django app that helps a truck driver choose the safest route based on we
 |---|---|---|
 | Backend | Django 5.2 LTS + Django REST Framework | Required by the brief. Stateless JSON API, API keys stay on the server |
 | Frontend | React + TypeScript + Vite | Required by the brief. Typed API contract |
-| Map | MapLibre GL JS + OpenFreeMap tiles | WebGL rendering, tiles need no API key |
+| Map | MapLibre GL JS + OpenFreeMap Positron tiles | WebGL rendering, tiles need no API key, and a quiet base map leaves risk as the strongest color |
+| Interface | Motion (lazy-loaded), Downshift, native range slider, Tailwind 4, Lucide | Compared by measured bundle size. three.js and deck.gl were left out because they add weight and put the slider's frame budget at risk without serving a required feature |
+| Design | Printed "design annual" language, recorded in `PRODUCT.md` and at the top of `index.html` | Chosen by the owner: professional, and not a generic dashboard |
 | Routing and geocoding | TomTom Routing and Search APIs | Real truck mode, vehicle weight, up to 5 alternatives, future `departAt` |
 | Weather | Open-Meteo forecast API | No key, hourly data, many locations per request |
 | Tests | pytest (backend), Vitest (frontend logic) | Risk and ranking rules are fully unit tested |
@@ -115,7 +117,7 @@ Each step leaves the project working, with tests passing where there is logic to
 | 11 | `feat(frontend): add trip form` | Autocomplete, departure, load, interval, validation |
 | 12 | `feat(frontend): show routes and checkpoints` | Route lines, risk-colored checkpoints, ETAs, summaries, recommended route |
 | 13 | `feat(frontend): add heatmap and forecast slider` | Bitmap frames, canvas layer, 0–48 h slider, legend |
-| 14 | `perf(frontend): polish states and performance` | Loading, error and No Travel states, mobile layout, measured slider timing |
+| 14 | `perf(frontend): polish states and performance` | Loading, error and No Travel states, mobile layout, measured slider timing, final design review, `DESIGN.md` |
 | 15 | `chore: add deployment config` | Vercel and Render config, production settings |
 | 16 | `docs: complete README` | Setup, architecture, assumptions, hosted link, Loom link |
 
