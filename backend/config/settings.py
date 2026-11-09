@@ -49,6 +49,15 @@ DATABASES = {}
 USE_TZ = True
 TIME_ZONE = "UTC"
 
+TOMTOM_API_KEY = os.environ.get("TOMTOM_API_KEY", "")
+
+# httpx logs full request URLs at INFO level, and TomTom URLs contain the API key.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "loggers": {"httpx": {"level": "WARNING"}},
+}
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [],
     "DEFAULT_PERMISSION_CLASSES": [],
