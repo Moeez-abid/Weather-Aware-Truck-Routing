@@ -22,10 +22,10 @@ Confirmed before choosing:
 
 - TomTom docs: `travelMode=truck`, `vehicleWeight` in kg, `maxAlternatives` 0–5, `departAt`. The docs warn that **fewer alternatives may be returned**, so the app needs a fallback (commit 5).
 - Open-Meteo live call: comma-separated coordinates return one result per location, `rain`, `showers` and `snowfall` come back in inches, wind in mph, and `timezone=auto` returns each location's timezone.
+- Open-Meteo response headers: each location costs 1 call, whatever the forecast length up to 14 days. The free limits are 600 calls a minute, 5,000 an hour and 10,000 a day, so caching matters and a heatmap has to stay within a few hundred points.
 
-Still to confirm with a real key or at deploy time:
+Still to confirm at deploy time:
 
-- How Open-Meteo counts multi-location requests against its 10,000 calls/day limit (commit 7).
 - Current TomTom free-tier numbers, since its pricing changed in July 2026.
 
 ## Core logic
@@ -52,7 +52,7 @@ Load rules:
 
 - Forecast is looked up at the checkpoint's **ETA**, not the departure time.
 - Rain is `rain + showers`, because Open-Meteo reports convective showers separately and using `rain` alone would under-report storms.
-- Precipitation uses the hour that contains the ETA. Wind is interpolated between hours.
+- Precipitation uses the hour that contains the ETA. Open-Meteo stamps each total at the end of its hour, so a 10:30 ETA reads the 11:00 value. Wind is an instant value and is interpolated between hours.
 - All times are handled in UTC. Departure is entered in the origin's local time, and ETAs are shown in each checkpoint's local time.
 - Missing weather is **never treated as Low**. The request fails with a clear error, or the departure is rejected if the trip runs past the forecast window.
 
@@ -131,6 +131,7 @@ Each step leaves the project working, with tests passing where there is logic to
 7. **ETAs are drive time only.** Mandatory driver rest breaks aren't modeled.
 8. **Trucks are capped at 65 mph.** Without a cap, TomTom assumes road speed limits (up to 78 mph on tested routes), which would read the weather too early on long trips.
 9. **Address search covers the US, Canada and Mexico**, matching the brief's miles and pounds.
+10. **Forecasts cover 14 days from today.** A trip that would still be driving after that is rejected rather than scored with missing weather.
 
 ## Needed from you
 

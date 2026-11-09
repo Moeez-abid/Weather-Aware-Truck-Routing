@@ -49,6 +49,14 @@ DATABASES = {}
 USE_TZ = True
 TIME_ZONE = "UTC"
 
+# Holds weather forecasts. Django's default of 300 entries is smaller than one trip's heatmap.
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "OPTIONS": {"MAX_ENTRIES": 2000},
+    }
+}
+
 TOMTOM_API_KEY = os.environ.get("TOMTOM_API_KEY", "")
 
 # httpx logs full request URLs at INFO level, and TomTom URLs contain the API key.
