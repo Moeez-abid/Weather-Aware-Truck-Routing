@@ -19,7 +19,7 @@ const MapView = lazy(() => import("./map/MapView"));
 
 function loadingMessage(service: ServiceStatus): string {
   return service === "connecting"
-    ? "The server is waking up after being idle, so this first trip can take up to a minute."
+    ? "The server is starting up, so this first trip can take a little longer than usual."
     : "Finding truck routes and reading the forecast along each one. This can take up to 15 seconds.";
 }
 

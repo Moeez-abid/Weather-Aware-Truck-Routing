@@ -18,7 +18,7 @@ React + Django app that helps a truck driver choose the safest route based on we
 | Routing and geocoding | TomTom Routing and Search APIs | Real truck mode, vehicle weight, up to 5 alternatives, future `departAt` |
 | Weather | Open-Meteo forecast API | No key, hourly data, many locations per request |
 | Tests | pytest (backend), Vitest (frontend logic) | Risk and ranking rules are fully unit tested |
-| Hosting | Vercel (frontend) + Render (backend) | Simple deploys. Render's free tier sleeps, so wake it before the Loom or a review |
+| Hosting | Vercel for both, as two projects from this repository | No card needed and no sleeping server. Render was the first choice, but its setup asked for a card |
 
 Confirmed before choosing:
 
@@ -119,7 +119,7 @@ Each step leaves the project working, with tests passing where there is logic to
 | 12 | `feat(frontend): show routes and checkpoints` | Route lines, risk-colored checkpoints, ETAs, summaries, recommended route |
 | 13 | `feat(frontend): add heatmap and forecast slider` | Bitmap frames, canvas layer, 0–48 h slider, legend |
 | 14 | `perf(frontend): polish states and performance` | Loading, error and No Travel states, mobile layout, measured slider timing, final design review, `DESIGN.md` |
-| 15 | `chore: add deployment config` | Vercel and Render config, production settings |
+| 15 | `chore: add deployment config` | Vercel config for frontend and backend, production settings, request limits |
 | 16 | `docs: complete README` | Setup, architecture, assumptions, hosted link, Loom link |
 
 **Workflow for each step:** I implement and test it, stage only that step's files with `git add`, and give you the exact commit and push commands. I never commit or push. I start the next step after you confirm.
@@ -138,9 +138,10 @@ Each step leaves the project working, with tests passing where there is logic to
 10. **Forecasts cover 14 days from today.** A trip that would still be driving after that is rejected rather than scored with missing weather.
 11. **Departures up to 15 minutes in the past are accepted,** because the form defaults to the current time. Anything older is rejected.
 12. **Heatmap detail depends on trip length,** to stay within the free weather API's limits. Cells range from about 7 miles on short trips to about 100 miles coast to coast.
+13. **Each connection has request limits** (60 trip plans and 60 heatmaps an hour, plus generous limits for address search), so that a public link can't use up the TomTom and Open-Meteo quotas.
 
 ## Needed from you
 
 - An empty GitHub repository (no README or license), before commit 1 is pushed.
 - A TomTom API key from developer.tomtom.com, before commit 5. It goes in your local `.env`, which is never committed.
-- Vercel and Render accounts, before commit 15.
+- A Vercel account, before commit 15.

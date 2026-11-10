@@ -1,6 +1,6 @@
+django-cors-headers==4.9.0
 Django==5.2.19
 djangorestframework==3.18.3
-django-cors-headers==4.9.0
 httpx==0.28.1
 python-dotenv==1.2.4
 tzdata==2026.6

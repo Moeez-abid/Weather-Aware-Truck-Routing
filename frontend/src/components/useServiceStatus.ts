@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 import { checkHealth } from "../api/client";
 
-/** "connecting" lasts until the backend answers. A hosted backend that was idle can take a minute to wake. */
+/** "connecting" lasts until the backend answers, which takes a moment longer when it has been idle. */
 export type ServiceStatus = "connecting" | "online" | "offline";
 
 export function useServiceStatus(): ServiceStatus {

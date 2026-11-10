@@ -1,9 +1,10 @@
 from typing import Any
 
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, throttle_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from api.throttles import GeocodeThrottle, HeatmapThrottle, TimezoneThrottle, TripPlanThrottle
 from api.serializers import (
     HeatmapRequestSerializer,
     PositionSerializer,
@@ -33,6 +34,7 @@ def health(request: Request) -> Response:
 
 
 @api_view(["GET"])
+@throttle_classes([GeocodeThrottle])
 def geocode(request: Request) -> Response:
     query = request.query_params.get("q", "").strip()
     if len(query) > GEOCODE_MAX_QUERY_LENGTH:
@@ -56,6 +58,7 @@ def geocode(request: Request) -> Response:
 
 
 @api_view(["GET"])
+@throttle_classes([TimezoneThrottle])
 def origin_timezone(request: Request) -> Response:
     """Return a position's timezone, so the form can show and default to the origin's local time."""
     serializer = PositionSerializer(data=request.query_params)
@@ -71,6 +74,7 @@ def origin_timezone(request: Request) -> Response:
 
 
 @api_view(["POST"])
+@throttle_classes([TripPlanThrottle])
 def trip_plan(request: Request) -> Response:
     serializer = TripPlanRequestSerializer(data=request.data)
     if not serializer.is_valid():
@@ -91,6 +95,7 @@ def trip_plan(request: Request) -> Response:
 
 
 @api_view(["POST"])
+@throttle_classes([HeatmapThrottle])
 def heatmap(request: Request) -> Response:
     serializer = HeatmapRequestSerializer(data=request.data)
     if not serializer.is_valid():
