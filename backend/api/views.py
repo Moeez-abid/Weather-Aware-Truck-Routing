@@ -13,10 +13,11 @@ from api.serializers import (
     to_trip_request,
     trip_plan_payload,
 )
-from routing.domain import LatLon, NoRouteError, RoutingError
+from routing.domain import LatLon, NoRouteError, RouteTooComplexError, RoutingError
+from routing.places import get_city_search, search_places
 from routing.tomtom import get_tomtom_client
-from trips.heatmap import build_heatmap
-from trips.planner import InvalidDepartureError, plan_trip
+from trips.heatmap import HeatmapTooLargeError, build_heatmap
+from trips.planner import InvalidDepartureError, TripTooLongError, plan_trip
 from weather.forecast import ForecastUnavailableError, WeatherError
 from weather.open_meteo import get_weather_client
 
@@ -43,7 +44,7 @@ def geocode(request: Request) -> Response:
         return Response({"results": []})
 
     try:
-        places = get_tomtom_client().geocode(query)
+        places = search_places(query, get_tomtom_client(), get_city_search())
     except RoutingError as error:
         return Response({"error": str(error)}, status=502)
 
@@ -86,7 +87,13 @@ def trip_plan(request: Request) -> Response:
         )
     except InvalidDepartureError as error:
         return Response({"error": str(error), "fields": {"departure": [str(error)]}}, status=400)
-    except (NoRouteError, ForecastUnavailableError) as error:
+    except TripTooLongError as error:
+        body: dict[str, Any] = {"error": str(error)}
+        if error.interval_miles is not None:
+            # Shown beside the interval choice, since a wider interval fixes it.
+            body["fields"] = {"interval_miles": [str(error)]}
+        return Response(body, status=422)
+    except (NoRouteError, RouteTooComplexError, ForecastUnavailableError) as error:
         return Response({"error": str(error)}, status=422)
     except (RoutingError, WeatherError) as error:
         return Response({"error": str(error)}, status=502)
@@ -104,6 +111,10 @@ def heatmap(request: Request) -> Response:
     data = serializer.validated_data
     try:
         result = build_heatmap(data["routes"], data["departure"], data["load_lb"], get_weather_client())
+    except InvalidDepartureError as error:
+        return Response({"error": str(error), "fields": {"departure": [str(error)]}}, status=400)
+    except HeatmapTooLargeError as error:
+        return Response({"error": str(error)}, status=422)
     except WeatherError as error:
         return Response({"error": str(error)}, status=502)
 

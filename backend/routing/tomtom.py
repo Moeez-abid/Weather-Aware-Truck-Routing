@@ -15,7 +15,15 @@ from urllib.parse import quote
 import httpx
 from django.conf import settings
 
-from routing.domain import LatLon, NoRouteError, Place, ProviderError, Route, TimingPoint
+from routing.domain import (
+    LatLon,
+    NoRouteError,
+    Place,
+    ProviderError,
+    Route,
+    RouteTooComplexError,
+    TimingPoint,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +33,8 @@ TIMEOUT_SECONDS = 30
 # than "Rossiya".
 GEOCODE_LANGUAGE = "en-US"
 NO_ROUTE_CODES = {"NO_ROUTE_FOUND", "MAP_MATCHING_FAILURE"}
+# TomTom stops after about 30 seconds of work, which a route across continents can need.
+TOO_COMPLEX_CODES = {"COMPUTE_TIME_LIMIT_EXCEEDED"}
 
 # TomTom needs the truck's total weight for road limits, but the driver enters only the load.
 EMPTY_TRUCK_LB = 33_000
@@ -106,9 +116,14 @@ class TomTomClient:
         self._api_key = api_key
         self._http = httpx.Client(base_url=BASE_URL, timeout=TIMEOUT_SECONDS, transport=transport)
 
-    def _get(self, path: str, params: dict[str, Any]) -> Any:
+    def _get(self, path: str, params: dict[str, Any], timeout_s: float | None = None) -> Any:
+        timeout = httpx.USE_CLIENT_DEFAULT if timeout_s is None else timeout_s
         try:
-            response = self._http.get(path, params={**params, "key": self._api_key})
+            response = self._http.get(path, params={**params, "key": self._api_key}, timeout=timeout)
+        except httpx.TimeoutException:
+            raise ProviderError(
+                "The routing service took too long to answer. Please try again."
+            ) from None
         except httpx.HTTPError:
             raise ProviderError("The routing service could not be reached.") from None
 
@@ -116,6 +131,10 @@ class TomTomClient:
             code = _error_code(response)
             if code in NO_ROUTE_CODES:
                 raise NoRouteError("No truck route could be found between these locations.")
+            if code in TOO_COMPLEX_CODES:
+                raise RouteTooComplexError(
+                    "This trip is too long for the routing service to work out. Try a shorter trip."
+                )
             logger.warning("TomTom returned HTTP %s (%s)", response.status_code, code)
             raise ProviderError("The routing service returned an error.")
 
@@ -132,6 +151,7 @@ class TomTomClient:
         load_lb: float,
         via: LatLon | None = None,
         max_alternatives: int = 0,
+        timeout_s: float | None = None,
     ) -> list[Route]:
         stops = [origin, destination] if via is None else [origin, via, destination]
         locations = ":".join(_format_position(stop) for stop in stops)
@@ -149,6 +169,7 @@ class TomTomClient:
                 "instructionsType": "coded",
                 "routeRepresentation": "polyline",
             },
+            timeout_s,
         )
         try:
             routes = [_parse_route(raw) for raw in data["routes"]]
@@ -159,8 +180,11 @@ class TomTomClient:
         return routes
 
     def geocode(self, query: str, limit: int = 5) -> list[Place]:
+        # The query is part of the URL path, where TomTom treats an encoded slash as a separator,
+        # so text like "../" would fail. Addresses read the same with a space instead.
+        text = query.replace("/", " ").replace("\\", " ")
         data = self._get(
-            f"/search/2/geocode/{quote(query, safe='')}.json",
+            f"/search/2/geocode/{quote(text, safe='')}.json",
             {"typeahead": "true", "limit": limit, "language": GEOCODE_LANGUAGE},
         )
         places: dict[str, Place] = {}
@@ -168,7 +192,8 @@ class TomTomClient:
             for result in data["results"]:
                 label = _place_label(result["address"])
                 position = LatLon(result["position"]["lat"], result["position"]["lon"])
-                places.setdefault(label, Place(label=label, position=position))
+                is_city = result.get("entityType") == "Municipality"
+                places.setdefault(label, Place(label=label, position=position, is_city=is_city))
         except (KeyError, TypeError):
             raise ProviderError("The routing service returned an invalid response.") from None
         return list(places.values())

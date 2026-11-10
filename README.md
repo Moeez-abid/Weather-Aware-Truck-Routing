@@ -30,11 +30,15 @@ The first request after a quiet period can take a few seconds while the backend 
 
 TomTom truck routing is asked for the best route plus 2 alternatives, using the truck's weight and departure time. TomTom sometimes returns fewer, so the app then re-routes through a point offset to each side of the trip's midpoint and keeps only routes that differ meaningfully from the ones it has. Some short trips have no real alternative. The app then shows the routes that exist and says so.
 
+Routing has a 40-second budget, because the server stops each request at 60 seconds. Detours are only tried while time is left. Trips across continents, such as London to Karachi, can take TomTom over 30 seconds with alternatives. If TomTom gives up, the app asks again for a single route.
+
 ### 2. Checkpoints and arrival times
 
 Checkpoints sit at the origin, every 10, 25 or 50 miles (chosen by the user, default 25), and at the destination. Each checkpoint covers half the distance to its neighbors on each side, so the miles per risk level add up exactly to the route's length.
 
 Each checkpoint's ETA follows TomTom's own timing along the route, not a constant speed.
+
+A trip may use at most 450 checkpoints across its routes, because each one costs a call to the free weather service. When the chosen interval needs more, the form names the smallest interval that fits, such as "Choose 25 miles instead" for Miami to Seattle at 10 miles.
 
 ### 3. Weather at the ETA
 
@@ -80,7 +84,8 @@ The app explains the deciding reason in plain words, for example "Weather risk m
 
 The backend lays a grid over the corridor around all routes and scores every cell for each hour from 0 to 48 after departure, using the same risk rules and the entered load.
 
-- **Grid:** cells sit on a fixed Web Mercator lattice. The finest spacing that fits in 300 cells is used, from about 7 miles on short trips to about 100 miles coast to coast.
+- **Grid:** cells sit on a fixed Web Mercator lattice. The finest spacing that fits in 300 cells is used, from about 7 miles on short trips to about 100 miles coast to coast. A corridor too large even for the coarsest grid gets no heatmap, and the app says so.
+- **Departure:** a departure more than an hour old, or beyond the 14-day forecast, is refused before any weather calls are made.
 - **Payload:** each hour is a string with one character per cell (`0`–`4`, or `-` where the forecast has no data). All 49 hours together come to about 10 KB.
 - **Drawing:** the frontend draws all 49 hours to bitmaps once. Moving the slider only swaps which bitmap a MapLibre canvas source shows, with no network request and no GeoJSON rebuild.
 - **Measured speed:** on the production build, a drag across all 49 hours produced no frame over 50 ms and no input event over 16 ms. Each step's script took at most 0.2 ms.
@@ -95,7 +100,8 @@ Browser (React, MapLibre)
 Django REST API (stateless, no database)
    ├── TomTom Routing API    truck routes with departure time and weight
    ├── TomTom Search API     address autocomplete, worldwide
-   └── Open-Meteo API        hourly forecasts, cached for 15 minutes
+   ├── Open-Meteo search     major cities ranked by population
+   └── Open-Meteo forecast   hourly forecasts, cached for 15 minutes
 ```
 
 API keys stay on the server, and the browser only talks to the Django API. Nothing is stored: every trip is calculated per request.
@@ -107,7 +113,7 @@ The trip plan and the heatmap are separate requests, so routes appear first and 
 | Package | Responsibility |
 |---|---|
 | `risk/` | Risk thresholds and load rules (`classification.py`), mile totals and ranking (`recommendation.py`). Pure functions, no I/O |
-| `routing/` | TomTom client (`tomtom.py`), the three-route fallback (`options.py`), checkpoint sampling and ETAs (`checkpoints.py`), and geometry helpers |
+| `routing/` | TomTom client (`tomtom.py`), address search that lists major cities first (`places.py`), the three-route fallback and routing time budget (`options.py`), checkpoint sampling and ETAs (`checkpoints.py`), and geometry helpers |
 | `weather/` | Open-Meteo client with batching, retries and caching (`open_meteo.py`), and reading a forecast at a given time (`forecast.py`) |
 | `trips/` | Joins the pieces: `planner.py` builds a trip plan, `heatmap.py` builds the corridor grid and hourly frames |
 | `api/` | Views, request validation, request limits, and errors returned as `{"error": "..."}` |
@@ -136,7 +142,7 @@ Every risk level has its own shape as well as its own color (circle, triangle, s
 | Backend | Python 3.14, Django 5.2 LTS, Django REST Framework, httpx |
 | Frontend | React 19, TypeScript, Vite, Tailwind 4, Downshift |
 | Map | MapLibre GL JS with OpenFreeMap Positron tiles (no key needed) |
-| Routing and search | TomTom Routing and Search APIs |
+| Routing and search | TomTom Routing and Search APIs, plus Open-Meteo place search to rank major cities (no key needed) |
 | Weather | Open-Meteo forecast API (no key needed) |
 | Tests | pytest with pytest-django, Vitest |
 | Hosting | Vercel, as two projects from this repository |
@@ -216,7 +222,7 @@ cd frontend && npm test
 cd frontend && npm run typecheck
 ```
 
-- **Backend (407 tests):** every risk boundary value and load rule, every ranking tie-break, the route fallback and de-duplication against saved TomTom responses, checkpoint spacing and ETAs, forecast lookup at the ETA, missing-forecast handling, heatmap grid sizing, request validation, request limits and error responses. Tests never call TomTom or Open-Meteo.
+- **Backend (453 tests):** every risk boundary value and load rule, every ranking tie-break, the route fallback, de-duplication and time budget against saved TomTom responses, checkpoint spacing, ETAs and the checkpoint limit, forecast lookup at the ETA, missing-forecast handling, heatmap grid sizing and limits, address search ranking, request validation, request limits and error responses. Tests never call TomTom or Open-Meteo.
 - **Frontend (103 tests):** form validation and local-time handling, the API client and its errors, map data, the recommendation reason, heatmap frame drawing, and number formatting.
 
 ## Deployment
@@ -242,15 +248,18 @@ Both parts run on Vercel as two projects from this repository.
 6. **Load rules use the entered load weight.** For truck-legal routing, TomTom receives the load plus an assumed 33,000 lb empty truck, converted to kg.
 7. **ETAs are drive time only.** Mandatory driver rest breaks aren't modeled.
 8. **Trucks are capped at 65 mph.** Without a cap, TomTom assumes road speed limits (up to 78 mph on tested routes), which would read the weather too early on long trips.
-9. **Address search covers every country.** Places outside the US show their country, because many place names repeat across countries (Islamabad, Pakistan and Islamabad, India). Units stay in miles, pounds, mph and inches per hour, as in the brief.
+9. **Address search covers every country.** Places outside the US show their country, because many place names repeat across countries (Islamabad, Pakistan and Islamabad, India). TomTom ranks some large cities poorly ("Lahore" doesn't list the city itself), so up to two cities of 50,000 people or more from Open-Meteo's place search are listed first. Units stay in miles, pounds, mph and inches per hour, as in the brief.
 10. **Forecasts cover 14 days from today.** A trip that would still be driving after that is rejected rather than scored with missing weather.
 11. **Departures up to 15 minutes in the past are accepted,** because the form defaults to the current time. Anything older is rejected.
-12. **Heatmap detail depends on trip length,** to stay within the free weather API's limits. Cells range from about 7 miles on short trips to about 100 miles coast to coast.
+12. **Heatmap detail depends on trip length,** to stay within the free weather API's limits. Cells range from about 7 miles on short trips to about 100 miles coast to coast. A corridor that needs more than 300 cells even at the coarsest size gets no heatmap.
 13. **Each connection has request limits** (60 trip plans and 60 heatmaps an hour, plus generous limits for address search), so that a public link can't use up the TomTom and Open-Meteo quotas.
+14. **A trip uses at most 450 weather checks** across its routes. That fits three coast-to-coast routes checked every 25 miles. Larger requests are refused, with the interval that would fit.
+15. **Very long trips may get a single route.** When TomTom can't work out alternatives in time, one route is better than none, and the app says that fewer routes exist.
 
 ## Limitations
 
-- **Free weather quota:** Open-Meteo's free tier allows 600 calls a minute and 10,000 a day, and each checkpoint or heatmap cell location costs one call. Several long trips in the same minute can reach that limit, and the app then asks the user to try again shortly.
+- **Free weather quota:** Open-Meteo's free tier allows 600 calls a minute and 10,000 a day, and each checkpoint or heatmap cell location costs one call. One trip uses at most 450 checkpoint calls and 300 heatmap calls, but several long trips in the same minute can still reach the limit, and the app then asks the user to try again shortly.
+- **Search cache:** address searches are cached for a day on each server instance, so repeated typing doesn't spend TomTom or Open-Meteo calls.
 - **Per-instance cache:** forecasts are cached in memory for 15 minutes on each server instance, so a cold start begins with an empty cache.
 - **Startup delay:** the first request after a quiet period waits for the serverless backend to start.
 - **Forecast, not observation:** risk is only as good as the forecast, and forecasts further out are less certain.

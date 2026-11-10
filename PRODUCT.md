@@ -39,6 +39,7 @@ Routes come from TomTom truck routing and weather from Open-Meteo. A cold trip p
 - Departure is entered in the origin's local time, and ETAs are shown in each checkpoint's local time.
 - Forecasts cover 14 days from today. Heatmap hours beyond the forecast are left blank and never shown as Low.
 - Address search covers every country, and places outside the US show their country. Units are miles, pounds, mph and inches per hour.
+- A trip uses at most 450 weather checks across its routes. When the chosen interval needs more, the form names the interval that fits.
 - Moving the forecast slider must take under 16 ms per step, with no network request.
 - The brief says to prioritize correctness and clarity over extra features.
 

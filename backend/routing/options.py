@@ -5,11 +5,12 @@ requested, so any shortfall is filled by routing through waypoints placed to
 either side of the trip's midpoint.
 """
 
-from collections.abc import Iterator
+import time
+from collections.abc import Callable, Iterator
 from datetime import datetime
 from typing import Protocol
 
-from routing.domain import LatLon, Route, RoutingError
+from routing.domain import LatLon, Route, RouteTooComplexError, RoutingError
 from routing.geometry import destination_point, haversine_m, initial_bearing_deg
 
 TARGET_ROUTE_COUNT = 3
@@ -17,6 +18,13 @@ ROAD_CELL_DEGREES = 0.005
 MAX_SHARED_ROAD = 0.9
 DETOUR_OFFSET_FRACTIONS = (0.15, 0.30)
 MAX_DETOUR_DURATION_RATIO = 2.0
+# Seconds for all routing calls. The server stops a request at 60 seconds, and the weather
+# lookups still need time after routing. Long trips, such as London to Karachi, take TomTom
+# 25 to 35 seconds for the main call, so it may use the whole budget, and detours are only
+# tried while the budget lasts.
+ROUTING_BUDGET_S = 40.0
+# A detour call given less time than this would almost always time out.
+MIN_DETOUR_S = 5.0
 
 
 class RouteProvider(Protocol):
@@ -28,6 +36,7 @@ class RouteProvider(Protocol):
         load_lb: float,
         via: LatLon | None = None,
         max_alternatives: int = 0,
+        timeout_s: float | None = None,
     ) -> list[Route]: ...
 
 
@@ -70,22 +79,44 @@ def find_route_options(
     destination: LatLon,
     departure: datetime,
     load_lb: float,
+    clock: Callable[[], float] = time.monotonic,
 ) -> list[Route]:
     """Return up to three distinct routes, with the provider's best route first."""
+    deadline = clock() + ROUTING_BUDGET_S
+    try:
+        main_routes = provider.calculate_routes(
+            origin,
+            destination,
+            departure,
+            load_lb,
+            max_alternatives=TARGET_ROUTE_COUNT - 1,
+            timeout_s=ROUTING_BUDGET_S,
+        )
+    except RouteTooComplexError:
+        # Alternatives take TomTom far longer to work out. One route is better than none.
+        remaining_s = deadline - clock()
+        if remaining_s < MIN_DETOUR_S:
+            raise
+        main_routes = provider.calculate_routes(
+            origin, destination, departure, load_lb, timeout_s=remaining_s
+        )
+
     found = _DistinctRoutes()
-    for route in provider.calculate_routes(
-        origin, destination, departure, load_lb, max_alternatives=TARGET_ROUTE_COUNT - 1
-    ):
+    for route in main_routes:
         found.add(route)
 
     longest_allowed_s = found.routes[0].duration_s * MAX_DETOUR_DURATION_RATIO
     for waypoint in detour_waypoints(origin, destination):
-        if len(found.routes) >= TARGET_ROUTE_COUNT:
+        remaining_s = deadline - clock()
+        if len(found.routes) >= TARGET_ROUTE_COUNT or remaining_s < MIN_DETOUR_S:
             break
         try:
-            detour = provider.calculate_routes(origin, destination, departure, load_lb, via=waypoint)[0]
+            detour = provider.calculate_routes(
+                origin, destination, departure, load_lb, via=waypoint, timeout_s=remaining_s
+            )[0]
         except RoutingError:
-            # A waypoint can land somewhere undrivable. The routes already found are still valid.
+            # A waypoint can land somewhere undrivable, or the call can run out of time. The
+            # routes already found are still valid.
             continue
         if detour.duration_s <= longest_allowed_s:
             found.add(detour)

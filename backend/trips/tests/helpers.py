@@ -54,6 +54,7 @@ class FakeRouter:
         load_lb: float,
         via: LatLon | None = None,
         max_alternatives: int = 0,
+        timeout_s: float | None = None,
     ) -> list[Route]:
         self.calls.append({"departure": departure, "load_lb": load_lb, "via": via})
         if via is not None:

@@ -149,3 +149,29 @@ def test_weather_failure_is_a_bad_gateway(weather: MagicMock) -> None:
 
     assert response.status_code == 502
     assert response.json() == {"error": "The weather service failed."}
+
+
+@pytest.mark.usefixtures("weather")
+def test_an_old_departure_is_refused() -> None:
+    response = post(body(departure=(NOW - timedelta(days=3)).isoformat()))
+
+    assert response.status_code == 400
+    assert response.json()["fields"]["departure"] == ["Departure time is in the past."]
+
+
+@pytest.mark.usefixtures("weather")
+def test_a_departure_beyond_the_forecast_is_refused() -> None:
+    response = post(body(departure=(NOW + timedelta(days=30)).isoformat()))
+
+    assert response.status_code == 400
+    assert response.json()["fields"]["departure"] == ["The weather forecast doesn't reach this departure."]
+
+
+def test_a_corridor_too_large_is_unprocessable(weather: MagicMock) -> None:
+    globe = [[-170.0, 60.0], [0.0, 0.0], [170.0, -50.0]]
+
+    response = post(body(routes=[globe]))
+
+    assert response.status_code == 422
+    assert "too large for the weather heatmap" in response.json()["error"]
+    assert weather.return_value.calls == []

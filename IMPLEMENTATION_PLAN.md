@@ -134,11 +134,13 @@ Each step leaves the project working, with tests passing where there is logic to
 6. **Load rules use the entered load weight.** For truck-legal routing, TomTom receives load plus an assumed 33,000 lb empty truck, converted to kg.
 7. **ETAs are drive time only.** Mandatory driver rest breaks aren't modeled.
 8. **Trucks are capped at 65 mph.** Without a cap, TomTom assumes road speed limits (up to 78 mph on tested routes), which would read the weather too early on long trips.
-9. **Address search covers every country.** Places outside the US show their country, because many place names repeat across countries (Islamabad, Pakistan and Islamabad, India). Units stay in miles, pounds, mph and inches per hour, as in the brief. Search first covered only the US, Canada and Mexico, and was opened up after the owner asked for trips in Pakistan.
+9. **Address search covers every country.** Places outside the US show their country, because many place names repeat across countries (Islamabad, Pakistan and Islamabad, India). Units stay in miles, pounds, mph and inches per hour, as in the brief. Search first covered only the US, Canada and Mexico, and was opened up after the owner asked for trips in Pakistan. Because TomTom ranks some large cities poorly ("Lahore" doesn't list the city), up to two major cities from Open-Meteo's place search are listed first.
 10. **Forecasts cover 14 days from today.** A trip that would still be driving after that is rejected rather than scored with missing weather.
 11. **Departures up to 15 minutes in the past are accepted,** because the form defaults to the current time. Anything older is rejected.
-12. **Heatmap detail depends on trip length,** to stay within the free weather API's limits. Cells range from about 7 miles on short trips to about 100 miles coast to coast.
+12. **Heatmap detail depends on trip length,** to stay within the free weather API's limits. Cells range from about 7 miles on short trips to about 100 miles coast to coast. A corridor that needs more than 300 cells even at the coarsest size gets no heatmap.
 13. **Each connection has request limits** (60 trip plans and 60 heatmaps an hour, plus generous limits for address search), so that a public link can't use up the TomTom and Open-Meteo quotas.
+14. **A trip uses at most 450 weather checks** across its routes. That fits three coast-to-coast routes checked every 25 miles. Larger requests are refused, with the interval that would fit. Added after break-testing showed a 10-mile coast-to-coast trip spending over 1,000 calls.
+15. **Very long trips may get a single route.** Routing has a 40-second budget within the server's 60-second limit, and when TomTom can't work out alternatives in time, the app asks for one route.
 
 ## Needed from you
 

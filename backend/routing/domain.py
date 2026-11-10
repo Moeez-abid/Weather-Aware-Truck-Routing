@@ -11,6 +11,8 @@ class LatLon(NamedTuple):
 class Place:
     label: str
     position: LatLon
+    # A city or town, rather than a street or address. Used to rank major cities first.
+    is_city: bool = False
 
 
 @dataclass(frozen=True)
@@ -40,3 +42,7 @@ class NoRouteError(RoutingError):
 
 class ProviderError(RoutingError):
     """The routing provider failed or could not be reached."""
+
+
+class RouteTooComplexError(RoutingError):
+    """The provider gave up because the route took too long to calculate, as on very long trips."""

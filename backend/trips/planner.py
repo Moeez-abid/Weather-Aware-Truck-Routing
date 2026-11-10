@@ -24,9 +24,26 @@ from weather.forecast import LocationForecast
 # The form defaults to the current time, which is slightly in the past once it is submitted.
 DEPARTURE_GRACE = timedelta(minutes=15)
 
+CHECKPOINT_INTERVALS_MILES = (10, 25, 50)
+# Each checkpoint costs one Open-Meteo call, and the free tier allows 600 a minute and 10,000 a
+# day for everyone using the app. 450 still fits three coast-to-coast routes checked every 25
+# miles, while a single long trip checked every 10 miles (over 1,000 calls) is turned away.
+MAX_CHECKPOINTS = 450
+
 
 class InvalidDepartureError(Exception):
     """The departure time can't be used. The message is safe to show to users."""
+
+
+class TripTooLongError(Exception):
+    """The trip needs more weather checks than one request may use. The message is safe to show.
+
+    `interval_miles` is the smallest checkpoint interval that would fit, if any does.
+    """
+
+    def __init__(self, message: str, interval_miles: int | None) -> None:
+        super().__init__(message)
+        self.interval_miles = interval_miles
 
 
 class WeatherProvider(Protocol):
@@ -98,6 +115,31 @@ def _plan_route(
     return PlannedRoute(route_id, route, planned, summary)
 
 
+def _check_checkpoint_count(
+    routes: Sequence[Route],
+    sampled: Sequence[Sequence[Checkpoint]],
+    interval_miles: int,
+    departure: datetime,
+) -> None:
+    """Raise before any weather calls are spent if the trip needs too many checkpoints."""
+    needed = sum(len(checkpoints) for checkpoints in sampled)
+    if needed <= MAX_CHECKPOINTS:
+        return
+
+    for wider in (interval for interval in CHECKPOINT_INTERVALS_MILES if interval > interval_miles):
+        if sum(len(sample_checkpoints(route, wider, departure)) for route in routes) <= MAX_CHECKPOINTS:
+            raise TripTooLongError(
+                f"Checking the weather every {interval_miles} miles on this trip takes {needed} "
+                f"checks, and the limit is {MAX_CHECKPOINTS}. Choose {wider} miles instead.",
+                wider,
+            )
+    raise TripTooLongError(
+        f"This trip is too long to check the weather along: it takes {needed} checks, and the "
+        f"limit is {MAX_CHECKPOINTS}. Try a shorter trip.",
+        None,
+    )
+
+
 def plan_trip(
     trip: TripRequest,
     router: RouteProvider,
@@ -111,6 +153,7 @@ def plan_trip(
 
     routes = find_route_options(router, trip.origin, trip.destination, departure, trip.load_lb)
     sampled = [sample_checkpoints(route, trip.interval_miles, departure) for route in routes]
+    _check_checkpoint_count(routes, sampled, trip.interval_miles, departure)
     forecasts = weather.forecasts([item.position for item in chain.from_iterable(sampled)])
 
     planned_routes = []

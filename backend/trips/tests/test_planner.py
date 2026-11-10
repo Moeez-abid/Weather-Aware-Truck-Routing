@@ -4,8 +4,15 @@ from typing import Any
 import pytest
 
 from risk.classification import RiskLevel
-from routing.domain import LatLon, NoRouteError
-from trips.planner import InvalidDepartureError, TripPlan, TripRequest, plan_trip
+from routing.domain import LatLon, NoRouteError, Route
+from trips.planner import (
+    MAX_CHECKPOINTS,
+    InvalidDepartureError,
+    TripPlan,
+    TripRequest,
+    TripTooLongError,
+    plan_trip,
+)
 from trips.tests.helpers import (
     DESTINATION,
     ORIGIN,
@@ -255,3 +262,34 @@ def test_no_route_is_recommended_when_all_have_no_travel_miles() -> None:
 
     assert result.recommendation.recommended_route_id is None
     assert len(result.recommendation.ranked_route_ids) == 2
+
+
+def three_routes(miles: float, hours: float) -> list[Route]:
+    return [straight_route(miles, hours, lat=40.0 + index) for index in range(3)]
+
+
+def test_too_many_checkpoints_suggests_the_smallest_interval_that_fits() -> None:
+    weather = FakeWeather(calm)
+
+    with pytest.raises(TripTooLongError) as caught:
+        plan_trip(trip(interval_miles=10), FakeRouter(three_routes(1_600, 30)), weather, now=NOW)
+
+    assert caught.value.interval_miles == 25
+    assert "Choose 25 miles" in str(caught.value)
+    # Only the origin's forecast was read, to find its time zone.
+    assert len(weather.calls) == 1
+
+
+def test_a_trip_too_long_for_every_interval_suggests_none() -> None:
+    with pytest.raises(TripTooLongError) as caught:
+        plan(three_routes(8_000, 100), interval_miles=50)
+
+    assert caught.value.interval_miles is None
+    assert "Try a shorter trip" in str(caught.value)
+
+
+def test_a_trip_at_the_checkpoint_limit_is_planned() -> None:
+    # Three routes of 149 checkpoints each: the origin, every 10 miles, and the destination.
+    result = plan(three_routes(1_475, 30), interval_miles=10)
+
+    assert sum(len(route.checkpoints) for route in result.routes) == MAX_CHECKPOINTS - 3

@@ -11,9 +11,14 @@ from routing.checkpoints import METERS_PER_MILE
 from routing.domain import LatLon
 from routing.geometry import haversine_m, simplify_path
 from trips.heatmap import Heatmap
-from trips.planner import PlannedCheckpoint, PlannedRoute, TripPlan, TripRequest
+from trips.planner import (
+    CHECKPOINT_INTERVALS_MILES,
+    PlannedCheckpoint,
+    PlannedRoute,
+    TripPlan,
+    TripRequest,
+)
 
-CHECKPOINT_INTERVALS_MILES = (10, 25, 50)
 DEFAULT_INTERVAL_MILES = 25
 MAX_LOAD_LB = 200_000
 MIN_TRIP_METERS = METERS_PER_MILE

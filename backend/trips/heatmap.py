@@ -17,8 +17,9 @@ from itertools import pairwise
 from risk.classification import assess
 from routing.domain import LatLon
 from routing.geometry import mercator_latitude, mercator_y
-from trips.planner import WeatherProvider
+from trips.planner import InvalidDepartureError, WeatherProvider
 from weather.forecast import ForecastUnavailableError, LocationForecast
+from weather.open_meteo import FORECAST_DAYS
 
 FORECAST_HOURS = 49
 # Cell size in degrees and corridor radius in cells, finest first. Coarse cells are already
@@ -27,6 +28,14 @@ GRID_OPTIONS = ((0.125, 2), (0.25, 2), (0.5, 2), (1.0, 1), (2.0, 1))
 # Leaves room for the trip's own checkpoints within Open-Meteo's limit of 600 calls a minute.
 MAX_CELLS = 300
 NO_FORECAST = "-"
+# The heatmap is requested right after its trip plan, whose departure may already be up to 15
+# minutes old. An hour leaves room for a slow connection without allowing old departures.
+MAX_DEPARTURE_AGE = timedelta(hours=1)
+FORECAST_REACH = timedelta(days=FORECAST_DAYS)
+
+
+class HeatmapTooLargeError(Exception):
+    """Even the coarsest grid needs more cells than one request may use. Safe to show users."""
 
 Cell = tuple[int, int]
 
@@ -73,20 +82,55 @@ def _widen(cells: set[Cell], radius: int) -> set[Cell]:
     return {(x + dx, y + dy) for x, y in cells for dx, dy in offsets}
 
 
+def _unwrapped_longitudes(path: Sequence[LatLon]) -> list[float]:
+    """Longitudes that keep counting past 180 when a path crosses it, instead of jumping to -180.
+
+    Without this, a route crossing the 180th meridian would look like it circles the globe.
+    """
+    longitudes: list[float] = []
+    for point in path:
+        lon = point.lon
+        if longitudes:
+            lon += 360 * round((longitudes[-1] - lon) / 360)
+        longitudes.append(lon)
+    return longitudes
+
+
+def _wrapped(lon: float) -> float:
+    return (lon + 180) % 360 - 180
+
+
 def corridor_cells(paths: Sequence[Sequence[LatLon]], size: float, radius: int) -> set[Cell]:
-    """Return the (column, row) of every cell near a path. Rows count upward from the equator."""
-    projected = [[(point.lon, mercator_y(point.lat)) for point in path] for path in paths]
+    """Return the (column, row) of every cell near a path. Rows count upward from the equator.
+
+    Columns past the 180th meridian keep counting, so a corridor that crosses it stays together.
+    """
+    projected = [
+        [(lon, mercator_y(point.lat)) for lon, point in zip(_unwrapped_longitudes(path), path)]
+        for path in paths
+    ]
     on_route = set().union(*(_cells_along_path(path, size) for path in projected))
     return _widen(on_route, radius)
 
 
 def choose_cells(paths: Sequence[Sequence[LatLon]]) -> tuple[float, set[Cell]]:
-    """Return the finest cell size whose corridor fits the budget, or else the coarsest."""
+    """Return the finest cell size whose corridor fits the budget."""
     for size, radius in GRID_OPTIONS:
         cells = corridor_cells(paths, size, radius)
         if len(cells) <= MAX_CELLS:
-            break
-    return size, cells
+            return size, cells
+    raise HeatmapTooLargeError(
+        "This trip's corridor is too large for the weather heatmap. The route comparison still "
+        "uses the forecast at every checkpoint."
+    )
+
+
+def _check_departure(departure: datetime, now: datetime) -> None:
+    """Raise before any weather calls are spent if the forecast can't cover the departure."""
+    if departure < now - MAX_DEPARTURE_AGE:
+        raise InvalidDepartureError("Departure time is in the past.")
+    if departure > now + FORECAST_REACH:
+        raise InvalidDepartureError("The weather forecast doesn't reach this departure.")
 
 
 def _risk_code(forecast: LocationForecast, when: datetime, load_lb: float) -> str:
@@ -102,7 +146,9 @@ def build_heatmap(
     departure: datetime,
     load_lb: float,
     weather: WeatherProvider,
+    now: datetime | None = None,
 ) -> Heatmap:
+    _check_departure(departure, now or datetime.now(UTC))
     size, cells = choose_cells(paths)
     west_column = min(column for column, _ in cells)
     east_column = max(column for column, _ in cells)
@@ -115,7 +161,7 @@ def build_heatmap(
 
     ordered = sorted(cells, key=flat_index)
     forecasts = weather.forecasts(
-        [LatLon(mercator_latitude(row * size), column * size) for column, row in ordered]
+        [LatLon(mercator_latitude(row * size), _wrapped(column * size)) for column, row in ordered]
     )
 
     start = departure.astimezone(UTC)

@@ -103,6 +103,13 @@ export function PlaceField({ id, label, error, onChange }: PlaceFieldProps) {
         {...combobox.getInputProps({
           "aria-invalid": error ? true : undefined,
           "aria-describedby": error ? errorId : undefined,
+          // While suggestions are open, Enter only picks one. Without this it could also submit
+          // the form before the chosen place is saved, and the field would report it as empty.
+          onKeyDown: (event) => {
+            if (event.key === "Enter" && combobox.isOpen) {
+              event.preventDefault();
+            }
+          },
         })}
         className={inputClass}
         placeholder="City or address"

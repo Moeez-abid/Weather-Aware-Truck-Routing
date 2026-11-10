@@ -7,7 +7,7 @@ from typing import Any
 import httpx
 import pytest
 
-from routing.domain import LatLon, NoRouteError, ProviderError
+from routing.domain import LatLon, NoRouteError, ProviderError, RouteTooComplexError
 from routing.tomtom import TomTomClient, get_tomtom_client, gross_weight_kg
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -205,7 +205,7 @@ def test_geocode_request_is_encoded_and_searches_every_country_in_english() -> N
 
     client_returning({"results": []}, seen=seen).geocode("A/B, TX?")
 
-    assert seen[0].url.raw_path.startswith(b"/search/2/geocode/A%2FB%2C%20TX%3F.json?")
+    assert seen[0].url.raw_path.startswith(b"/search/2/geocode/A%20B%2C%20TX%3F.json?")
     assert seen[0].url.params["typeahead"] == "true"
     assert seen[0].url.params["language"] == "en-US"
     assert "countrySet" not in seen[0].url.params
@@ -263,3 +263,43 @@ def test_missing_api_key_raises_provider_error(settings: Any) -> None:
         get_tomtom_client()
 
     get_tomtom_client.cache_clear()
+
+
+def test_a_timeout_says_the_service_was_slow() -> None:
+    client = client_raising(lambda request: httpx.ReadTimeout("slow", request=request))
+
+    with pytest.raises(ProviderError, match="took too long"):
+        route_call(client)
+
+
+def test_a_route_request_can_be_given_its_own_time_limit() -> None:
+    seen: list[httpx.Request] = []
+    client = client_returning(fixture("tomtom_routes"), seen=seen)
+
+    route_call(client, timeout_s=12.5)
+
+    assert seen[0].extensions["timeout"]["read"] == 12.5
+
+
+def test_geocode_turns_slashes_into_spaces() -> None:
+    seen: list[httpx.Request] = []
+
+    client_returning({"results": []}, seen=seen).geocode("../../etc\\x")
+
+    assert seen[0].url.raw_path.startswith(b"/search/2/geocode/..%20..%20etc%20x.json?")
+
+
+def test_geocode_marks_cities() -> None:
+    city = {**geocode_result("Quetta, Baluchistan", "PK", "Pakistan"), "entityType": "Municipality"}
+    street = geocode_result("Quetta Road, Somewhere", "PK", "Pakistan")
+
+    places = client_returning({"results": [city, street]}).geocode("Quetta")
+
+    assert [place.is_city for place in places] == [True, False]
+
+
+def test_a_route_too_long_to_calculate_has_its_own_error() -> None:
+    body = {"detailedError": {"code": "COMPUTE_TIME_LIMIT_EXCEEDED"}}
+
+    with pytest.raises(RouteTooComplexError, match="too long for the routing service"):
+        route_call(client_returning(body, status=500))

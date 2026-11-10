@@ -44,9 +44,10 @@ def test_requests_over_the_limit_are_refused_with_a_clear_message(get_client: Ma
     get_client.return_value.geocode.return_value = []
     client = Client()
 
+    # Different searches, because a repeated one is answered from the cache.
     assert client.get("/api/geocode", {"q": "Dallas"}).status_code == 200
-    assert client.get("/api/geocode", {"q": "Dallas"}).status_code == 200
-    refused = client.get("/api/geocode", {"q": "Dallas"})
+    assert client.get("/api/geocode", {"q": "Denver"}).status_code == 200
+    refused = client.get("/api/geocode", {"q": "Austin"})
 
     assert refused.status_code == 429
     assert refused.json() == {

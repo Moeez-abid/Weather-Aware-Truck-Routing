@@ -19,7 +19,7 @@ def test_returns_matching_places(get_client: MagicMock) -> None:
 
     assert response.status_code == 200
     assert response.json() == {"results": [{"label": "Dallas, TX", "lat": 32.77, "lon": -96.79}]}
-    get_client.return_value.geocode.assert_called_once_with("Dallas")
+    get_client.return_value.geocode.assert_called_once_with("Dallas", 5)
 
 
 @patch("api.views.get_tomtom_client")

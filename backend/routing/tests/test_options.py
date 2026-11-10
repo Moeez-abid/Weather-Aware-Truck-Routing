@@ -1,10 +1,19 @@
 from datetime import UTC, datetime
+from typing import Any
 
 import pytest
 
-from routing.domain import LatLon, NoRouteError, ProviderError, Route, RoutingError, TimingPoint
+from routing.domain import (
+    LatLon,
+    NoRouteError,
+    ProviderError,
+    Route,
+    RouteTooComplexError,
+    RoutingError,
+    TimingPoint,
+)
 from routing.geometry import destination_point, haversine_m, initial_bearing_deg
-from routing.options import detour_waypoints, find_route_options
+from routing.options import MIN_DETOUR_S, ROUTING_BUDGET_S, detour_waypoints, find_route_options
 
 ORIGIN = LatLon(40, -100)
 DESTINATION = LatLon(40, -98)
@@ -38,10 +47,23 @@ def sharing(base: Route, other_lat: float, shared_fraction: float) -> Route:
 
 
 class FakeProvider:
-    def __init__(self, first: list[Route] | Exception, detours: list[Route | Exception]) -> None:
+    """Each call moves the fake clock on by `seconds_per_call`: the first value for the main
+    call and the second for each detour."""
+
+    def __init__(
+        self,
+        first: list[Route] | Exception,
+        detours: list[Route | Exception],
+        seconds_per_call: tuple[float, float] = (0.0, 0.0),
+    ) -> None:
         self.first = first
         self.detours = list(detours)
         self.calls: list[dict] = []
+        self.now = 0.0
+        self.seconds_per_call = seconds_per_call
+
+    def clock(self) -> float:
+        return self.now
 
     def calculate_routes(
         self,
@@ -51,8 +73,12 @@ class FakeProvider:
         load_lb: float,
         via: LatLon | None = None,
         max_alternatives: int = 0,
+        timeout_s: float | None = None,
     ) -> list[Route]:
-        self.calls.append({"via": via, "max_alternatives": max_alternatives, "load_lb": load_lb})
+        self.calls.append(
+            {"via": via, "max_alternatives": max_alternatives, "load_lb": load_lb, "timeout_s": timeout_s}
+        )
+        self.now += self.seconds_per_call[0 if via is None else 1]
         result = self.first if via is None else self.detours.pop(0)
         if isinstance(result, Exception):
             raise result
@@ -60,7 +86,7 @@ class FakeProvider:
 
 
 def options(provider: FakeProvider) -> list[Route]:
-    return find_route_options(provider, ORIGIN, DESTINATION, DEPARTURE, 40_000)
+    return find_route_options(provider, ORIGIN, DESTINATION, DEPARTURE, 40_000, clock=provider.clock)
 
 
 A, B, C, D = (route_on(lat) for lat in (40.0, 41.0, 42.0, 43.0))
@@ -71,7 +97,7 @@ def test_three_distinct_routes_need_no_extra_requests() -> None:
 
     assert options(provider) == [A, B, C]
     assert len(provider.calls) == 1
-    assert provider.calls[0] == {"via": None, "max_alternatives": 2, "load_lb": 40_000}
+    assert provider.calls[0] == {"via": None, "max_alternatives": 2, "load_lb": 40_000, "timeout_s": ROUTING_BUDGET_S}
 
 
 def test_missing_route_is_filled_through_a_waypoint() -> None:
@@ -167,3 +193,54 @@ def test_waypoints_sit_on_both_sides_at_two_distances() -> None:
     assert sorted([waypoints[2].lat, midpoint.lat, waypoints[3].lat])[1] == midpoint.lat
     for waypoint, fraction in zip(waypoints, (0.15, 0.15, 0.30, 0.30), strict=True):
         assert haversine_m(midpoint, waypoint) == pytest.approx(trip_m * fraction, rel=0.001)
+
+
+def test_a_slow_main_request_leaves_no_time_for_detours() -> None:
+    seconds = ROUTING_BUDGET_S - MIN_DETOUR_S + 1
+    provider = FakeProvider([A], [B, C], seconds_per_call=(seconds, 0.0))
+
+    assert options(provider) == [A]
+    assert len(provider.calls) == 1
+
+
+def test_detours_get_only_the_time_left_in_the_budget() -> None:
+    provider = FakeProvider([A], [B, C], seconds_per_call=(24.0, 0.0))
+
+    options(provider)
+
+    assert provider.calls[0]["timeout_s"] == ROUTING_BUDGET_S
+    assert provider.calls[1]["timeout_s"] == ROUTING_BUDGET_S - 24.0
+
+
+def test_detours_stop_when_the_budget_runs_out() -> None:
+    provider = FakeProvider([A], [B, C, D], seconds_per_call=(20.0, 16.0))
+
+    assert options(provider) == [A, B]
+    assert len(provider.calls) == 2
+
+
+class TooComplexWithAlternatives(FakeProvider):
+    """Gives up when asked for alternatives, like TomTom on a trip across continents."""
+
+    def calculate_routes(self, *args: Any, max_alternatives: int = 0, **kwargs: Any) -> list[Route]:
+        if max_alternatives:
+            self.calls.append({"max_alternatives": max_alternatives})
+            self.now += self.seconds_per_call[0]
+            raise RouteTooComplexError("Too long.")
+        return super().calculate_routes(*args, max_alternatives=max_alternatives, **kwargs)
+
+
+def test_a_route_too_complex_for_alternatives_is_retried_alone() -> None:
+    provider = TooComplexWithAlternatives([A], [], seconds_per_call=(30.0, 0.0))
+
+    assert options(provider) == [A]
+    assert provider.calls[1]["max_alternatives"] == 0
+    assert provider.calls[1]["timeout_s"] == ROUTING_BUDGET_S - 30.0
+
+
+def test_no_retry_when_the_budget_is_spent() -> None:
+    provider = TooComplexWithAlternatives([A], [], seconds_per_call=(ROUTING_BUDGET_S, 0.0))
+
+    with pytest.raises(RouteTooComplexError):
+        options(provider)
+    assert len(provider.calls) == 1

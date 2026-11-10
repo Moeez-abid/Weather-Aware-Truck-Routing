@@ -9,7 +9,7 @@ import pytest
 from django.http import HttpResponse
 from django.test import Client
 
-from routing.domain import LatLon, NoRouteError, ProviderError, Route, TimingPoint
+from routing.domain import LatLon, NoRouteError, ProviderError, Route, RouteTooComplexError, TimingPoint
 from trips.tests.helpers import FakeRouter, FakeWeather, forecast_from, straight_route
 from weather.forecast import ForecastUnavailableError, LocationForecast, WeatherError
 
@@ -262,3 +262,34 @@ def test_weather_service_failure_is_a_bad_gateway(weather: MagicMock) -> None:
 
     assert response.status_code == 502
     assert response.json() == {"error": "The weather service failed."}
+
+
+@pytest.mark.usefixtures("weather")
+def test_too_many_checkpoints_points_to_the_interval(router: MagicMock) -> None:
+    router.return_value = FakeRouter([straight_route(1_600, 30, lat=40.0 + index) for index in range(3)])
+
+    response = post(body(interval_miles=10))
+
+    assert response.status_code == 422
+    assert "Choose 25 miles" in response.json()["error"]
+    assert response.json()["fields"]["interval_miles"] == [response.json()["error"]]
+
+
+@pytest.mark.usefixtures("weather")
+def test_a_trip_too_long_for_any_interval_has_no_field(router: MagicMock) -> None:
+    router.return_value = FakeRouter([straight_route(8_000, 100, lat=40.0 + index) for index in range(3)])
+
+    response = post(body(interval_miles=50))
+
+    assert response.status_code == 422
+    assert "fields" not in response.json()
+
+
+@pytest.mark.usefixtures("weather")
+def test_a_route_too_long_to_calculate_is_unprocessable(router: MagicMock) -> None:
+    router.return_value.calculate_routes = MagicMock(side_effect=RouteTooComplexError("Too long."))
+
+    response = post(body())
+
+    assert response.status_code == 422
+    assert response.json() == {"error": "Too long."}

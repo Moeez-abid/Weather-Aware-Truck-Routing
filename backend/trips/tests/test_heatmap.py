@@ -11,11 +11,14 @@ from trips.heatmap import (
     FORECAST_HOURS,
     GRID_OPTIONS,
     MAX_CELLS,
+    MAX_DEPARTURE_AGE,
     Heatmap,
+    HeatmapTooLargeError,
     build_heatmap,
     choose_cells,
     corridor_cells,
 )
+from trips.planner import InvalidDepartureError
 from trips.tests.helpers import FakeWeather, forecast_from
 from weather.forecast import LocationForecast
 
@@ -35,7 +38,8 @@ def calm(position: LatLon) -> LocationForecast:
 
 def build(by_position: Any = calm, paths: Any = None, **overrides: Any) -> tuple[Heatmap, FakeWeather]:
     weather = FakeWeather(by_position)
-    values: dict[str, Any] = {"departure": DEPARTURE, "load_lb": 20_000}
+    departure = overrides.get("departure", DEPARTURE)
+    values: dict[str, Any] = {"departure": departure, "load_lb": 20_000, "now": departure}
     result = build_heatmap(paths or [SHORT_PATH], weather=weather, **{**values, **overrides})
     return result, weather
 
@@ -62,10 +66,35 @@ def test_a_grid_that_exactly_fits_the_budget_is_used(monkeypatch: pytest.MonkeyP
     assert choose_cells([SHORT_PATH])[0] > finest_size
 
 
-def test_coarsest_grid_is_the_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_corridor_too_large_for_every_grid_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(heatmap_module, "MAX_CELLS", 0)
 
-    assert choose_cells([SHORT_PATH])[0] == GRID_OPTIONS[-1][0]
+    with pytest.raises(HeatmapTooLargeError):
+        choose_cells([SHORT_PATH])
+
+
+def test_a_refused_corridor_spends_no_weather_calls(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(heatmap_module, "MAX_CELLS", 0)
+    weather = FakeWeather(calm)
+
+    with pytest.raises(HeatmapTooLargeError):
+        build_heatmap([SHORT_PATH], DEPARTURE, 20_000, weather, now=DEPARTURE)
+
+    assert weather.calls == []
+
+
+def test_a_globe_spanning_path_is_refused() -> None:
+    with pytest.raises(HeatmapTooLargeError):
+        choose_cells([[LatLon(60, -170), LatLon(0, 0), LatLon(-50, 170)]])
+
+
+def test_the_coarsest_grid_is_used_when_only_it_fits() -> None:
+    path = [LatLon(30, -10), LatLon(45, 40), LatLon(40, 100)]
+
+    size, cells = choose_cells([path])
+
+    assert size == GRID_OPTIONS[-1][0]
+    assert len(cells) <= MAX_CELLS
 
 
 def test_grid_options_widen_from_fine_to_coarse() -> None:
@@ -258,3 +287,37 @@ def test_missing_values_are_not_shown_as_calm() -> None:
 
     assert set(result.frames[0]) == {"-"}
     assert set(result.frames[1]) == {"0"}
+
+
+def test_an_old_departure_is_refused_before_any_weather_calls() -> None:
+    weather = FakeWeather(calm)
+    now = DEPARTURE + MAX_DEPARTURE_AGE + timedelta(seconds=1)
+
+    with pytest.raises(InvalidDepartureError):
+        build_heatmap([SHORT_PATH], DEPARTURE, 20_000, weather, now=now)
+
+    assert weather.calls == []
+
+
+def test_a_departure_just_inside_the_allowed_age_is_accepted() -> None:
+    build(now=DEPARTURE + MAX_DEPARTURE_AGE)
+
+
+def test_a_departure_beyond_the_forecast_is_refused_before_any_weather_calls() -> None:
+    weather = FakeWeather(calm)
+
+    with pytest.raises(InvalidDepartureError):
+        build_heatmap([SHORT_PATH], DEPARTURE + timedelta(days=15), 20_000, weather, now=DEPARTURE)
+
+    assert weather.calls == []
+
+
+def test_a_path_across_the_180th_meridian_stays_a_narrow_corridor() -> None:
+    path = [LatLon(52.0, 179.5), LatLon(52.0, -179.5)]
+
+    result, weather = build(paths=[path])
+
+    asked = [position for batch in weather.calls for position in batch]
+    assert len(asked) == len(result.cells) < 100
+    assert all(-180 <= position.lon < 180 for position in asked)
+    assert result.west < 180 < result.east
