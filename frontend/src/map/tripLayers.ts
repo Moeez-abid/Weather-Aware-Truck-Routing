@@ -13,6 +13,8 @@ const CHECKPOINT_SOURCE = "trip-checkpoints";
 const ENDPOINT_SOURCE = "trip-endpoints";
 
 const OTHER_LINES = "routes-other";
+/** The lowest route layer, which anything drawn under the routes has to be added before. */
+export const FIRST_ROUTE_LAYER = OTHER_LINES;
 const SELECTED_CASING = "routes-selected-casing";
 const SELECTED_LINE = "routes-selected";
 export const ROUTE_HIT_AREA = "routes-hit";

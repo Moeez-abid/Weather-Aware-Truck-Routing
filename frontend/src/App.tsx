@@ -1,9 +1,11 @@
-import { lazy, Suspense, useCallback, useState } from "react";
+import { lazy, Suspense, useCallback, useRef, useState } from "react";
 
 import type { TripPlan } from "./api/types";
 import { MapPlaceholder, MapPlate } from "./components/MapPlate";
 import { TopBar } from "./components/TopBar";
-import type { CheckpointFocus } from "./map/MapView";
+import { ForecastBar } from "./forecast/ForecastBar";
+import { useHeatmap } from "./forecast/useHeatmap";
+import type { CheckpointFocus, MapHandle } from "./map/MapView";
 import { defaultRouteId } from "./results/recommendation";
 import { TripResults } from "./results/TripResults";
 import { serverFieldErrors } from "./trip/formValues";
@@ -42,6 +44,11 @@ export function App() {
   const plan = state.status === "success" ? state.plan : null;
   const selectedRouteId = plan ? (choice?.plan === plan ? choice.routeId : defaultRouteId(plan)) : null;
   const showResults = state.status === "success" && !isEditing;
+  const { state: heatmapState, retry: retryHeatmap } = useHeatmap(
+    plan,
+    state.status === "success" ? state.trip.load_lb : null,
+  );
+  const mapHandle = useRef<MapHandle>(null);
 
   const selectRoute = useCallback(
     (routeId: string) => {
@@ -55,7 +62,7 @@ export function App() {
   return (
     <div className="grid h-full grid-rows-[auto_minmax(0,1fr)]">
       <TopBar />
-      <main className="grid min-h-0 grid-rows-[minmax(16rem,38dvh)_minmax(0,1fr)] lg:grid-cols-[minmax(24rem,30rem)_minmax(0,1fr)] lg:grid-rows-1">
+      <main className="grid min-h-0 grid-rows-[minmax(20rem,48dvh)_minmax(0,1fr)] lg:grid-cols-[minmax(24rem,30rem)_minmax(0,1fr)] lg:grid-rows-1">
         <section
           aria-label="Trip planner"
           className="order-2 flex min-h-0 flex-col gap-6 overflow-y-auto border-hairline p-6 lg:order-1 lg:border-r lg:p-8"
@@ -95,10 +102,25 @@ export function App() {
           )}
         </section>
 
-        <MapPlate className="order-1 lg:order-2">
+        <MapPlate
+          className="order-1 lg:order-2"
+          footer={
+            state.status === "success" && (
+              <ForecastBar
+                key={state.planNumber}
+                plan={state.plan}
+                state={heatmapState}
+                onHourChange={(hour) => mapHandle.current?.showForecastHour(hour)}
+                onRetry={retryHeatmap}
+              />
+            )
+          }
+        >
           <Suspense fallback={<MapPlaceholder />}>
             <MapView
+              ref={mapHandle}
               plan={plan}
+              heatmap={heatmapState.status === "ready" ? heatmapState.heatmap : null}
               selectedRouteId={selectedRouteId}
               focusedCheckpoint={focusedCheckpoint}
               onSelectRoute={selectRoute}

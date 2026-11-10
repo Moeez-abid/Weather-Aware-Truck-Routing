@@ -11,12 +11,13 @@ export interface PlaceNames {
 export type TripPlanState =
   | { status: "idle" }
   | { status: "loading" }
-  | { status: "success"; plan: TripPlan; trip: TripRequest; places: PlaceNames }
+  | { status: "success"; planNumber: number; plan: TripPlan; trip: TripRequest; places: PlaceNames }
   | { status: "error"; error: ApiError };
 
 export function useTripPlan() {
   const [state, setState] = useState<TripPlanState>({ status: "idle" });
   const controller = useRef<AbortController | null>(null);
+  const planCount = useRef(0);
 
   const submit = useCallback((trip: TripRequest, places: PlaceNames) => {
     controller.current?.abort();
@@ -25,7 +26,10 @@ export function useTripPlan() {
 
     setState({ status: "loading" });
     planTrip(trip, current.signal).then(
-      (plan) => setState({ status: "success", plan, trip, places }),
+      (plan) => {
+        planCount.current += 1;
+        setState({ status: "success", planNumber: planCount.current, plan, trip, places });
+      },
       (error: unknown) => {
         if (!current.signal.aborted) {
           setState({

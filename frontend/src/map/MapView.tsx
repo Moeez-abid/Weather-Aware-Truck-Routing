@@ -1,12 +1,13 @@
 import { Map as MapLibreMap, Marker, NavigationControl, Popup, setWorkerUrl } from "maplibre-gl";
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 import { createPortal } from "react-dom";
 
-import type { Checkpoint, TripPlan } from "../api/types";
+import type { Checkpoint, Heatmap, TripPlan } from "../api/types";
 import { MapPlaceholder } from "../components/MapPlate";
 import { CheckpointDetail } from "../results/CheckpointDetail";
 import { routeById } from "../results/recommendation";
+import { addHeatmapLayer, type HeatmapLayer } from "./heatmapLayer";
 import { routeLabelPosition } from "./mapData";
 import { addTripLayers, CLICKABLE_LAYERS, highlightRoute, showPlan } from "./tripLayers";
 
@@ -36,18 +37,32 @@ interface OpenPopup {
   element: HTMLElement;
 }
 
+export interface MapHandle {
+  showForecastHour: (hour: number) => void;
+}
+
 interface MapViewProps {
+  ref: Ref<MapHandle>;
   plan: TripPlan | null;
+  heatmap: Heatmap | null;
   selectedRouteId: string | null;
   focusedCheckpoint: CheckpointFocus | null;
   onSelectRoute: (routeId: string) => void;
 }
 
-export default function MapView({ plan, selectedRouteId, focusedCheckpoint, onSelectRoute }: MapViewProps) {
+export default function MapView({
+  ref,
+  plan,
+  heatmap,
+  selectedRouteId,
+  focusedCheckpoint,
+  onSelectRoute,
+}: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const popupRef = useRef<Popup | null>(null);
   const labelsRef = useRef(new Map<string, Marker>());
+  const heatmapRef = useRef<HeatmapLayer | null>(null);
   const [status, setStatus] = useState<MapStatus>("loading");
   const [openPopup, setOpenPopup] = useState<OpenPopup | null>(null);
 
@@ -85,6 +100,24 @@ export default function MapView({ plan, selectedRouteId, focusedCheckpoint, onSe
       map.remove();
     };
   }, []);
+
+  useImperativeHandle(ref, () => ({ showForecastHour: (hour) => heatmapRef.current?.showHour(hour) }), []);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (status !== "ready" || !map || !heatmap) {
+      return;
+    }
+    const layer = addHeatmapLayer(map, heatmap);
+    heatmapRef.current = layer;
+    return () => {
+      heatmapRef.current = null;
+      // The map may already be gone if the whole page is being torn down.
+      if (mapRef.current) {
+        layer.remove();
+      }
+    };
+  }, [heatmap, status]);
 
   function showCheckpoint(checkpoint: Checkpoint) {
     const map = mapRef.current;

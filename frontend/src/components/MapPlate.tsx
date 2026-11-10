@@ -12,11 +12,18 @@ export function MapPlaceholder() {
   return <div aria-hidden="true" className="dot-matrix absolute inset-0 bg-ground" />;
 }
 
+interface MapPlateProps {
+  children: ReactNode;
+  /** Controls that sit below the map, outside its frame. */
+  footer?: ReactNode;
+  className?: string;
+}
+
 /** Frames the map like a printed plate, with registration marks at its corners. */
-export function MapPlate({ children, className = "" }: { children: ReactNode; className?: string }) {
+export function MapPlate({ children, footer, className = "" }: MapPlateProps) {
   return (
-    <div className={`min-h-0 p-4 lg:p-8 ${className}`}>
-      <div className="relative size-full">
+    <div className={`flex min-h-0 flex-col p-4 lg:p-8 ${className}`}>
+      <div className="relative min-h-0 flex-1">
         <div className="absolute inset-0 overflow-hidden border border-hairline">{children}</div>
         {CORNERS.map((position) => (
           <svg
@@ -29,6 +36,7 @@ export function MapPlate({ children, className = "" }: { children: ReactNode; cl
           </svg>
         ))}
       </div>
+      {footer}
     </div>
   );
 }
