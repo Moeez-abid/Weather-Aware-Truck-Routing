@@ -1,0 +1,408 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-10T08:26:15+00:00",
+  "title": "Design System: Clearhaul",
+  "extensions": {
+    "colorMeta": {
+      "ground": {
+        "role": "neutral",
+        "displayName": "Uncoated Stock",
+        "canonical": "#f5f4f6",
+        "tonalRamp": [
+          "#0b0b0c",
+          "#252526",
+          "#424243",
+          "#626162",
+          "#838284",
+          "#a5a4a6",
+          "#c9c9ca",
+          "#efeef0"
+        ]
+      },
+      "ground-warm": {
+        "role": "neutral",
+        "displayName": "Warm Drift",
+        "canonical": "#faf6f5",
+        "tonalRamp": [
+          "#0d0a0a",
+          "#272424",
+          "#444140",
+          "#64605f",
+          "#858180",
+          "#a8a4a3",
+          "#ccc8c7",
+          "#f1edec"
+        ]
+      },
+      "ground-cool": {
+        "role": "neutral",
+        "displayName": "Cool Drift",
+        "canonical": "#eef3ef",
+        "tonalRamp": [
+          "#090c0a",
+          "#222623",
+          "#3f4340",
+          "#5e625f",
+          "#7f8480",
+          "#a2a6a3",
+          "#c6cbc7",
+          "#ebf0ec"
+        ]
+      },
+      "field": {
+        "role": "neutral",
+        "displayName": "Field White",
+        "canonical": "#fbfbfc",
+        "tonalRamp": [
+          "#0b0b0c",
+          "#252526",
+          "#424243",
+          "#616162",
+          "#828283",
+          "#a5a5a6",
+          "#c9c9ca",
+          "#eeeeef"
+        ]
+      },
+      "ink": {
+        "role": "primary",
+        "displayName": "Plate Ink",
+        "canonical": "#16181a",
+        "tonalRamp": [
+          "#0a0b0d",
+          "#232527",
+          "#404245",
+          "#5f6164",
+          "#808385",
+          "#a3a5a8",
+          "#c7c9cc",
+          "#eceff2"
+        ]
+      },
+      "ink-hover": {
+        "role": "primary",
+        "displayName": "Pressed Ink",
+        "canonical": "#33363a",
+        "tonalRamp": [
+          "#090b0f",
+          "#222529",
+          "#3f4246",
+          "#5e6166",
+          "#7f8387",
+          "#a2a5aa",
+          "#c6c9ce",
+          "#ebeff4"
+        ]
+      },
+      "ink-muted": {
+        "role": "neutral",
+        "displayName": "Muted Ink",
+        "canonical": "#5a5d62",
+        "tonalRamp": [
+          "#090b0f",
+          "#232529",
+          "#3f4247",
+          "#5e6166",
+          "#7f8288",
+          "#a2a5ab",
+          "#c6c9cf",
+          "#ebeff5"
+        ]
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline Grey",
+        "canonical": "#c9c7c4",
+        "tonalRamp": [
+          "#0c0b09",
+          "#262523",
+          "#43423f",
+          "#63615e",
+          "#84827f",
+          "#a7a5a2",
+          "#cbc9c6",
+          "#f0eeeb"
+        ]
+      },
+      "seal": {
+        "role": "secondary",
+        "displayName": "Seal Periwinkle",
+        "canonical": "#dcddf3",
+        "tonalRamp": [
+          "#0a0917",
+          "#232333",
+          "#404052",
+          "#5f5f72",
+          "#808094",
+          "#a2a3b8",
+          "#c6c7dd",
+          "#ebecff"
+        ]
+      },
+      "alert": {
+        "role": "neutral",
+        "displayName": "Alert Red",
+        "canonical": "#a8201a",
+        "tonalRamp": [
+          "#2d0000",
+          "#510000",
+          "#752019",
+          "#9a4238",
+          "#c06458",
+          "#e6877a",
+          "#ffab9d",
+          "#ffd0c1"
+        ]
+      },
+      "route-other": {
+        "role": "neutral",
+        "displayName": "Alternate Route Grey",
+        "canonical": "#8b8e93",
+        "tonalRamp": [
+          "#090b0f",
+          "#232529",
+          "#3f4246",
+          "#5f6166",
+          "#7f8287",
+          "#a2a5aa",
+          "#c6c9cf",
+          "#ebeff4"
+        ]
+      },
+      "risk-low": {
+        "role": "tertiary",
+        "displayName": "Low",
+        "canonical": "#2f8f66",
+        "tonalRamp": [
+          "#001600",
+          "#003312",
+          "#00532e",
+          "#00744d",
+          "#38966d",
+          "#5fba8f",
+          "#84e0b2",
+          "#a9ffd7"
+        ]
+      },
+      "risk-moderate": {
+        "role": "tertiary",
+        "displayName": "Moderate",
+        "canonical": "#e0ab00",
+        "tonalRamp": [
+          "#1f0000",
+          "#3e1b00",
+          "#5e3a00",
+          "#7f5a00",
+          "#a27c11",
+          "#c69f41",
+          "#ecc467",
+          "#ffe98d"
+        ]
+      },
+      "risk-high": {
+        "role": "tertiary",
+        "displayName": "High",
+        "canonical": "#e36f12",
+        "tonalRamp": [
+          "#2b0000",
+          "#4e0200",
+          "#712800",
+          "#954912",
+          "#ba6b39",
+          "#e18e5c",
+          "#ffb280",
+          "#ffd7a4"
+        ]
+      },
+      "risk-severe": {
+        "role": "tertiary",
+        "displayName": "Severe",
+        "canonical": "#c4232b",
+        "tonalRamp": [
+          "#2d0000",
+          "#510002",
+          "#751f1f",
+          "#9a413d",
+          "#c0635d",
+          "#e7867f",
+          "#ffaaa1",
+          "#ffcfc6"
+        ]
+      },
+      "risk-no-travel": {
+        "role": "tertiary",
+        "displayName": "No Travel",
+        "canonical": "#3b1150",
+        "tonalRamp": [
+          "#1a002c",
+          "#360c4b",
+          "#552d6c",
+          "#764d8f",
+          "#996eb3",
+          "#bc90d8",
+          "#e1b4fe",
+          "#ffd9ff"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The view's one heading: the question before a trip or the verdict after it."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Route names and the wordmark."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Explanations, inputs and the recommendation's reason."
+      },
+      "small": {
+        "displayName": "Small",
+        "purpose": "Supporting facts, weather readings, legends and messages."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Uppercase monospace for field labels, section headings, status and measures."
+      }
+    },
+    "shadows": [
+      {
+        "name": "float",
+        "value": "0 6px 18px rgb(22 24 26 / 0.14)",
+        "purpose": "Only for content floating over the map, such as the checkpoint popup."
+      }
+    ],
+    "motion": [
+      {
+        "name": "reveal",
+        "value": "220ms cubic-bezier(0.16, 1, 0.3, 1), from 40% opacity and 8px down",
+        "purpose": "Results settle in once when a plan arrives."
+      },
+      {
+        "name": "progress-sweep",
+        "value": "1.4s cubic-bezier(0.65, 0, 0.35, 1) infinite",
+        "purpose": "Thin bar across the map while a plan loads."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "lg",
+        "value": "1024px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The form's one action.",
+      "html": "<button class=\"ds-btn-primary\">Compare routes</button>",
+      "css": ".ds-btn-primary { background: var(--color-ink, #16181a); color: var(--color-ground, #f5f4f6); height: 48px; padding: 0 24px; border: 0; border-radius: 0; font-family: 'Geist Mono Variable', ui-monospace, monospace; font-size: 0.875rem; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; transition: background-color 150ms; } .ds-btn-primary:hover { background: var(--color-ink-hover, #33363a); } .ds-btn-primary:focus-visible { outline: 2px solid #16181a; outline-offset: 2px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Quiet actions such as Edit trip.",
+      "html": "<button class=\"ds-btn-secondary\">Edit trip</button>",
+      "css": ".ds-btn-secondary { background: transparent; color: #16181a; height: 36px; padding: 0 12px; border: 1px solid #c9c7c4; border-radius: 0; font-family: 'Host Grotesk Variable', ui-sans-serif, sans-serif; font-size: 0.875rem; cursor: pointer; transition: border-color 150ms; } .ds-btn-secondary:hover { border-color: #16181a; } .ds-btn-secondary:focus-visible { outline: 2px solid #16181a; outline-offset: 2px; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Square field with a monospace label above.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Load weight (lb)</span><input class=\"ds-input\" value=\"40,000\"></label>",
+      "css": ".ds-field { display: block; } .ds-field-label { display: block; margin-bottom: 6px; font-family: 'Geist Mono Variable', ui-monospace, monospace; font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; color: #5a5d62; } .ds-input { width: 100%; height: 48px; padding: 0 12px; background: #fbfbfc; color: #16181a; border: 1px solid #c9c7c4; border-radius: 0; font: inherit; font-size: 1rem; transition: border-color 150ms; } .ds-input:hover { border-color: #5a5d62; } .ds-input:focus-visible { border-color: #16181a; outline: 2px solid #16181a; outline-offset: 0; }"
+    },
+    {
+      "name": "Segmented Choice",
+      "kind": "chip",
+      "refersTo": "segment-selected",
+      "description": "Weather check spacing.",
+      "html": "<div class=\"ds-segments\"><span>10 mi</span><span class=\"ds-on\">25 mi</span><span>50 mi</span></div>",
+      "css": ".ds-segments { display: grid; grid-template-columns: repeat(3, 1fr); height: 48px; border: 1px solid #c9c7c4; font-family: 'Host Grotesk Variable', sans-serif; } .ds-segments span { display: grid; place-items: center; border-left: 1px solid #c9c7c4; cursor: pointer; } .ds-segments span:first-child { border-left: 0; } .ds-segments span:hover { background: rgb(220 221 243 / 0.5); } .ds-segments .ds-on { background: #16181a; color: #f5f4f6; }"
+    },
+    {
+      "name": "Route Row",
+      "kind": "card",
+      "refersTo": "row-selected",
+      "description": "One route in the comparison, selected.",
+      "html": "<div class=\"ds-row\"><div class=\"ds-row-head\"><strong>Route A</strong><span class=\"ds-tag\">Recommended</span><span class=\"ds-time\">15 h 47 min</span></div><p>1,006 mi, arrives Tue 5:16 PM MST</p><div class=\"ds-bar\"><i style=\"width:12%;background:#e0ab00\"></i><i style=\"width:88%;background:#2f8f66\"></i></div></div>",
+      "css": ".ds-row { padding: 16px; background: #dcddf3; border: 1px solid #c9c7c4; font-family: 'Host Grotesk Variable', sans-serif; color: #16181a; } .ds-row-head { display: flex; align-items: baseline; gap: 10px; } .ds-row-head strong { font-size: 1.25rem; font-weight: 500; } .ds-time { margin-left: auto; } .ds-tag { background: #16181a; color: #f5f4f6; padding: 2px 6px; font: 0.6875rem 'Geist Mono Variable', monospace; letter-spacing: 0.08em; text-transform: uppercase; } .ds-row p { margin: 2px 0 12px; font-size: 0.875rem; color: #5a5d62; } .ds-bar { display: flex; gap: 1px; height: 8px; }"
+    },
+    {
+      "name": "Recommendation Seal",
+      "kind": "custom",
+      "refersTo": "seal",
+      "description": "Periwinkle stamp set half off the map plate's corner.",
+      "html": "<svg class=\"ds-seal\" viewBox=\"0 0 100 100\"><defs><path id=\"ds-ring\" d=\"M50 50m-37 0a37 37 0 1 1 74 0a37 37 0 1 1-74 0\"/></defs><circle cx=\"50\" cy=\"50\" r=\"49.5\" fill=\"#dcddf3\"/><circle cx=\"50\" cy=\"50\" r=\"28\" fill=\"none\" stroke=\"#16181a\" stroke-width=\"0.75\"/><text font-size=\"10.5\" font-family=\"Geist Mono Variable, monospace\" fill=\"#16181a\"><textPath href=\"#ds-ring\" textLength=\"226\" lengthAdjust=\"spacing\">RECOMMENDED · RECOMMENDED ·</textPath></text><text x=\"50\" y=\"51\" text-anchor=\"middle\" dominant-baseline=\"central\" font-size=\"34\" font-family=\"Host Grotesk Variable, sans-serif\" fill=\"#16181a\">A</text></svg>",
+      "css": ".ds-seal { width: 96px; height: 96px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Registered Plate",
+    "overview": "**Creative North Star: \"The Registered Plate\"**\n\nClearhaul is set like a plate section in a printed design annual. The page is near-white uncoated stock, ink is near-black, and structure comes from one-pixel hairlines rather than boxes and shadows. The map is the plate: framed by a hairline, held by registration marks at its corners, and stamped with a periwinkle seal when a route is recommended. Everything a driver or dispatcher needs to decide sits in a single ruled column beside it.\n\nThe system is deliberately quiet so that risk can be loud. The base map is a near-monochrome grey, the interface is ink and paper, and the only strong colors on screen are the five risk levels. Density stays moderate: the verdict is the largest type on the page, supporting numbers sit in plain rows, and nothing competes with the answer.\n\nThe owner chose this world for a professional tool that must not look like a generic AI dashboard and must not be too dense to read.",
+    "keyCharacteristics": [
+      "Near-white ground that drifts warm at the top left and cool at the bottom right, so it reads as paper rather than a flat fill.",
+      "One grotesque typeface for everything, with a monospace face only for labels and measures.",
+      "Square corners, one-pixel hairlines, and no decorative shadows.",
+      "Risk is the only strong color, and every risk level also has its own shape.",
+      "One authored motion: results settle into place once when a plan arrives."
+    ],
+    "rules": [
+      {
+        "name": "The Risk Owns Color Rule",
+        "body": "Strong color means risk. Interface chrome stays ink, hairline and paper; the periwinkle seal is the only other accent, and it only marks the current choice.",
+        "section": "colors"
+      },
+      {
+        "name": "The Shape Before Color Rule",
+        "body": "Every risk level is drawn with its own road-sign shape: circle for Low, yield triangle for Moderate, square for High, warning diamond for Severe, and a stop octagon with a white bar for No Travel. Color is never the only signal.",
+        "section": "colors"
+      },
+      {
+        "name": "The Blank Is Not Low Rule",
+        "body": "Where the forecast has no data, the map is left transparent and the legend says so. Missing weather is never painted with the Low color.",
+        "section": "colors"
+      },
+      {
+        "name": "The Mono For Measures Rule",
+        "body": "Monospace is only for labels, statuses and measured values. Sentences, headings and buttons with long text are never set in it.",
+        "section": "typography"
+      },
+      {
+        "name": "The One Heading Rule",
+        "body": "A view has one display-size heading, and it states the answer or the question. Everything else steps down to title or body.",
+        "section": "typography"
+      },
+      {
+        "name": "The Hairline Rule",
+        "body": "Group things with one-pixel rules and a single shared border. Never stack cards, and never add a shadow to something that does not float over the map.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "keep the verdict as the largest type on screen, in the display style.",
+      "pair every risk color with its shape, in the map, lists and legends.",
+      "frame the map as a plate with hairlines and registration marks.",
+      "use Seal Periwinkle only for the current choice and the recommendation stamp.",
+      "keep motion to state changes: results settle in once (220ms, from 40% opacity and 8px down), and a thin bar sweeps while a plan loads. Both stop under the reduced-motion setting."
+    ],
+    "donts": [
+      "add color to the interface beyond ink, hairline, paper, the seal and the risk scale.",
+      "round corners on controls or containers.",
+      "use shadows except on content that floats over the map.",
+      "use monospace for headings or sentences.",
+      "add labels above headings, numbered section markers or icon-and-heading card grids.",
+      "animate anything on the forecast slider's path. Each step only swaps a prepared image."
+    ]
+  }
+}

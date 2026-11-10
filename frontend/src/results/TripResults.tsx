@@ -105,7 +105,8 @@ export function TripResults({
             {places.origin} to {places.destination}
           </p>
           <p className="mt-0.5">
-            Departs {formatLocalTime(plan.departure, plan.timezone)}, {formatPounds(loadLb)}
+            Departs {formatLocalTime(plan.departure, plan.timezone)},{" "}
+            <span className="whitespace-nowrap">{formatPounds(loadLb)}</span>
           </p>
         </div>
         <button
@@ -121,7 +122,7 @@ export function TripResults({
         <h1
           ref={headingRef}
           tabIndex={-1}
-          className="text-[2.5rem] leading-[1.05] tracking-[-0.02em] text-balance outline-none"
+          className="text-[2.5rem] leading-[1.02] tracking-[-0.025em] text-balance outline-none lg:text-[3.25rem]"
         >
           {recommended ? `Take Route ${recommended}` : "No safe route at this departure"}
         </h1>

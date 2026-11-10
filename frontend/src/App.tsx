@@ -2,7 +2,9 @@ import { lazy, Suspense, useCallback, useRef, useState } from "react";
 
 import type { TripPlan } from "./api/types";
 import { MapPlaceholder, MapPlate } from "./components/MapPlate";
+import { RecommendationSeal } from "./components/RecommendationSeal";
 import { TopBar } from "./components/TopBar";
+import { useServiceStatus, type ServiceStatus } from "./components/useServiceStatus";
 import { ForecastBar } from "./forecast/ForecastBar";
 import { useHeatmap } from "./forecast/useHeatmap";
 import type { CheckpointFocus, MapHandle } from "./map/MapView";
@@ -15,11 +17,17 @@ import { useTripPlan, type TripPlanState } from "./trip/useTripPlan";
 // Loaded separately because the map library is most of the app's size. The page can paint first.
 const MapView = lazy(() => import("./map/MapView"));
 
-function PlanStatus({ state }: { state: TripPlanState }) {
+function loadingMessage(service: ServiceStatus): string {
+  return service === "connecting"
+    ? "The server is waking up after being idle, so this first trip can take up to a minute."
+    : "Finding truck routes and reading the forecast along each one. This can take up to 15 seconds.";
+}
+
+function PlanStatus({ state, service }: { state: TripPlanState; service: ServiceStatus }) {
   if (state.status === "loading") {
     return (
       <p role="status" className="text-sm text-ink-muted">
-        Finding truck routes and reading the forecast along each one. This can take up to 15 seconds.
+        {loadingMessage(service)}
       </p>
     );
   }
@@ -34,7 +42,22 @@ function PlanStatus({ state }: { state: TripPlanState }) {
   return null;
 }
 
+/** Shows that a plan is on its way, over the map that will hold it. */
+function PlanningOverlay() {
+  return (
+    <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 z-10">
+      <div className="h-0.5 overflow-hidden bg-hairline/60">
+        <div className="progress-sweep h-full w-1/3 bg-ink" />
+      </div>
+      <p className="m-3 inline-block border border-hairline bg-ground px-2.5 py-1 font-mono text-label text-ink uppercase">
+        Planning routes
+      </p>
+    </div>
+  );
+}
+
 export function App() {
+  const service = useServiceStatus();
   const { state, submit } = useTripPlan();
   const [isEditing, setIsEditing] = useState(false);
   // Remembers which plan a choice was made for, so that a new plan starts from its own default.
@@ -59,10 +82,17 @@ export function App() {
     [plan],
   );
 
+  // On a phone the map gets more room once there are routes and a forecast slider to show.
+  const phoneRows = plan
+    ? "grid-rows-[minmax(24rem,66dvh)_minmax(0,1fr)]"
+    : "grid-rows-[minmax(16rem,38dvh)_minmax(0,1fr)]";
+
   return (
     <div className="grid h-full grid-rows-[auto_minmax(0,1fr)]">
-      <TopBar />
-      <main className="grid min-h-0 grid-rows-[minmax(20rem,48dvh)_minmax(0,1fr)] lg:grid-cols-[minmax(24rem,30rem)_minmax(0,1fr)] lg:grid-rows-1">
+      <TopBar status={service} />
+      <main
+        className={`grid min-h-0 ${phoneRows} lg:grid-cols-[minmax(24rem,30rem)_minmax(0,1fr)] lg:grid-rows-1`}
+      >
         <section
           aria-label="Trip planner"
           className="order-2 flex min-h-0 flex-col gap-6 overflow-y-auto border-hairline p-6 lg:order-1 lg:border-r lg:p-8"
@@ -70,7 +100,7 @@ export function App() {
           {/* Stays mounted while hidden, so that editing a trip keeps what was entered. */}
           <div className={showResults ? "hidden" : "flex min-h-full flex-col gap-6"}>
             <div>
-              <h1 className="text-[2.5rem] leading-[1.05] tracking-[-0.02em] text-balance">
+              <h1 className="text-[2.5rem] leading-[1.02] tracking-[-0.025em] text-balance lg:text-[3.25rem]">
                 Find the safest route for this load.
               </h1>
               <p className="mt-4 text-body text-ink-muted">
@@ -85,25 +115,28 @@ export function App() {
               isSubmitting={state.status === "loading"}
               serverError={state.status === "error" ? state.error : null}
             />
-            <PlanStatus state={state} />
+            <PlanStatus state={state} service={service} />
             <div aria-hidden="true" className="dot-matrix hidden min-h-0 flex-1 lg:block" />
           </div>
 
           {showResults && (
-            <TripResults
-              plan={state.plan}
-              places={state.places}
-              loadLb={state.trip.load_lb}
-              selectedRouteId={selectedRouteId!}
-              onSelectRoute={selectRoute}
-              onSelectCheckpoint={(index) => setFocusedCheckpoint({ routeId: selectedRouteId!, index })}
-              onEditTrip={() => setIsEditing(true)}
-            />
+            <div key={state.planNumber} className="reveal">
+              <TripResults
+                plan={state.plan}
+                places={state.places}
+                loadLb={state.trip.load_lb}
+                selectedRouteId={selectedRouteId!}
+                onSelectRoute={selectRoute}
+                onSelectCheckpoint={(index) => setFocusedCheckpoint({ routeId: selectedRouteId!, index })}
+                onEditTrip={() => setIsEditing(true)}
+              />
+            </div>
           )}
         </section>
 
         <MapPlate
           className="order-1 lg:order-2"
+          seal={plan?.recommended_route_id && <RecommendationSeal routeId={plan.recommended_route_id} />}
           footer={
             state.status === "success" && (
               <ForecastBar
@@ -126,6 +159,7 @@ export function App() {
               onSelectRoute={selectRoute}
             />
           </Suspense>
+          {state.status === "loading" && <PlanningOverlay />}
         </MapPlate>
       </main>
     </div>

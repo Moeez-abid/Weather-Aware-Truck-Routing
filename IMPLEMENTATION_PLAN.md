@@ -13,8 +13,8 @@ React + Django app that helps a truck driver choose the safest route based on we
 | Backend | Django 5.2 LTS + Django REST Framework | Required by the brief. Stateless JSON API, API keys stay on the server |
 | Frontend | React + TypeScript + Vite | Required by the brief. Typed API contract |
 | Map | MapLibre GL JS + OpenFreeMap Positron tiles | WebGL rendering, tiles need no API key, and a quiet base map leaves risk as the strongest color |
-| Interface | Motion (lazy-loaded), Downshift, native range slider, Tailwind 4, Lucide | Compared by measured bundle size. three.js and deck.gl were left out because they add weight and put the slider's frame budget at risk without serving a required feature |
-| Design | Printed "design annual" language, recorded in `PRODUCT.md` and at the top of `index.html` | Chosen by the owner: professional, and not a generic dashboard |
+| Interface | Downshift, native range slider, Tailwind 4 | Compared by measured bundle size. three.js and deck.gl were left out because they add weight and put the slider's frame budget at risk without serving a required feature. Motion and Lucide turned out to be unnecessary: two CSS animations and drawn SVG shapes covered the need |
+| Design | Printed "design annual" language, recorded in `DESIGN.md` | Chosen by the owner: professional, and not a generic dashboard |
 | Routing and geocoding | TomTom Routing and Search APIs | Real truck mode, vehicle weight, up to 5 alternatives, future `departAt` |
 | Weather | Open-Meteo forecast API | No key, hourly data, many locations per request |
 | Tests | pytest (backend), Vitest (frontend logic) | Risk and ranking rules are fully unit tested |
@@ -87,7 +87,7 @@ Request 2 alternatives from TomTom. If fewer than 3 distinct routes come back, r
 - Grid cells sit on a fixed lattice and forecasts are cached, so trips can share cells. Each cell costs one Open-Meteo call, so the finest lattice (0.125° to 2°) that fits within 300 cells is used: short trips get a detailed grid and cross-country trips a coarser one.
 - Each frame is a string with one character per corridor cell, so all 49 frames come to about 10 KB. Hours the forecast doesn't reach are marked and left blank on the map, never shown as Low.
 - The heatmap loads separately from the routes, so routes appear first.
-- Target: under 16 ms per slider step, measured in Chrome's performance panel in commit 14.
+- Target: under 16 ms per slider step. Measured in commit 14 on the production build: a real drag across all 49 hours produced no frame over 50 ms and no input event over 16 ms, each step's script took at most 0.2 ms, and the slider made no network requests.
 
 ## API
 

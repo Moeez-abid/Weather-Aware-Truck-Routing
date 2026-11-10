@@ -25,9 +25,19 @@ export function WeatherSummary({ checkpoint }: { checkpoint: Checkpoint }) {
 }
 
 /** A checkpoint's full details, shown when it is chosen on the map. */
-export function CheckpointDetail({ checkpoint }: { checkpoint: Checkpoint }) {
+export function CheckpointDetail({ checkpoint, onClose }: { checkpoint: Checkpoint; onClose: () => void }) {
   return (
     <div className="font-sans text-ink">
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close checkpoint details"
+        className="absolute top-1.5 right-1.5 grid size-7 cursor-pointer place-items-center text-ink-muted transition-colors hover:text-ink"
+      >
+        <svg aria-hidden="true" viewBox="0 0 16 16" className="size-3.5 stroke-current" strokeWidth="1.5">
+          <path d="M3 3l10 10M13 3 3 13" />
+        </svg>
+      </button>
       <p className="flex items-center gap-1.5 text-base font-medium">
         <RiskGlyph level={checkpoint.risk} />
         {RISK_LABEL[checkpoint.risk]}

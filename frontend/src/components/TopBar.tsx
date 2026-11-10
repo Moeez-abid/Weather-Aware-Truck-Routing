@@ -1,11 +1,6 @@
-import { useEffect, useState } from "react";
-
-import { checkHealth } from "../api/client";
-
-type ServiceStatus = "connecting" | "online" | "offline";
+import type { ServiceStatus } from "./useServiceStatus";
 
 const STATUS_LABEL: Record<ServiceStatus, string> = {
-  // The hosted backend sleeps when idle and can take close to a minute to wake.
   connecting: "Connecting",
   online: "Service online",
   offline: "Service offline",
@@ -17,22 +12,7 @@ const STATUS_MARK: Record<ServiceStatus, string> = {
   offline: "border border-ink bg-[linear-gradient(135deg,transparent_45%,var(--color-ink)_45%,var(--color-ink)_55%,transparent_55%)]",
 };
 
-export function TopBar() {
-  const [status, setStatus] = useState<ServiceStatus>("connecting");
-
-  useEffect(() => {
-    const controller = new AbortController();
-    checkHealth(controller.signal).then(
-      () => setStatus("online"),
-      () => {
-        if (!controller.signal.aborted) {
-          setStatus("offline");
-        }
-      },
-    );
-    return () => controller.abort();
-  }, []);
-
+export function TopBar({ status }: { status: ServiceStatus }) {
   return (
     <header className="flex h-14 items-center justify-between gap-4 border-b border-hairline px-4 lg:px-8">
       <div className="flex min-w-0 items-baseline gap-5">

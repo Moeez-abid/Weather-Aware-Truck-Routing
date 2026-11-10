@@ -8,7 +8,7 @@ web
 
 ## Stack
 
-Delegated, with the owner approving the recommendation: React, TypeScript, Vite, MapLibre GL JS with OpenFreeMap tiles, Motion (lazy-loaded), Downshift, a native range input for the forecast slider, Tailwind 4 and Lucide icons. three.js and deck.gl were considered and left out because they add weight and risk to the map's frame budget without serving a required feature. The backend is Django REST Framework.
+Delegated, with the owner approving the recommendation: React, TypeScript, Vite, MapLibre GL JS with OpenFreeMap tiles, Downshift, a native range input for the forecast slider, and Tailwind 4. three.js and deck.gl were considered and left out because they add weight and risk to the map's frame budget without serving a required feature. Motion and Lucide were approved too, but the finished interface needed only two CSS animations and a handful of drawn shapes, so neither was added. The backend is Django REST Framework.
 
 ## Users
 

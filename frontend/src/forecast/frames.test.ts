@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Heatmap } from "../api/types";
-import { forecastHourLabels, framePixels, hasMissingForecast } from "./frames";
+import { forecastHourLabels, framePixels, hasMissingForecast, paddedCorners } from "./frames";
 
 function heatmap(frames: string[], cells = [0, 3, 5], columns = 3, rows = 2): Heatmap {
   return { columns, rows, west: -101, south: 39, east: -98, north: 41, cells, frames };
@@ -22,7 +22,7 @@ describe("framePixels", () => {
   it("colors each corridor cell at its grid position", () => {
     const [frame] = framePixels(heatmap(["034"]));
 
-    expect(pixel(frame!, 0)).toEqual([47, 143, 102, 51]);
+    expect(pixel(frame!, 0)).toEqual([47, 143, 102, 31]);
     expect(pixel(frame!, 3)).toEqual([196, 35, 43, 184]);
     expect(pixel(frame!, 5)).toEqual([59, 17, 80, 209]);
   });
@@ -56,6 +56,42 @@ describe("framePixels", () => {
     const opacities = [0, 1, 2, 3, 4].map((cell) => pixel(frame!, cell)[3]!);
     expect(opacities).toEqual([...opacities].sort((a, b) => a - b));
     expect(new Set(opacities).size).toBe(5);
+  });
+});
+
+describe("paddedCorners", () => {
+  it("adds one cell of width on each side", () => {
+    const [northWest, northEast] = paddedCorners(heatmap(["000"], [0], 3, 2));
+
+    expect(northWest[0]).toBeCloseTo(-102);
+    expect(northEast[0]).toBeCloseTo(-97);
+  });
+
+  it("adds one cell of height on each side, measured in Web Mercator", () => {
+    const [northWest, , , southWest] = paddedCorners({
+      columns: 1,
+      rows: 1,
+      west: 0,
+      east: 1,
+      south: 0,
+      north: 1,
+      cells: [0],
+      frames: ["0"],
+    });
+
+    // One degree of Mercator height above 1 degree north, and the same below the equator.
+    expect(northWest[1]).toBeCloseTo(2, 3);
+    expect(southWest[1]).toBeCloseTo(-1, 3);
+  });
+
+  it("orders the corners clockwise from the north-west", () => {
+    const [nw, ne, se, sw] = paddedCorners(heatmap(["000"]));
+
+    expect(nw[1]).toBe(ne[1]);
+    expect(se[1]).toBe(sw[1]);
+    expect(nw[0]).toBe(sw[0]);
+    expect(ne[0]).toBe(se[0]);
+    expect(nw[1]).toBeGreaterThan(sw[1]);
   });
 });
 

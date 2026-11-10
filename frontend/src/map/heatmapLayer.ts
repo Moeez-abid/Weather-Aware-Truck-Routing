@@ -1,7 +1,7 @@
 import type { CanvasSource, Map as MapLibreMap } from "maplibre-gl";
 
 import type { Heatmap } from "../api/types";
-import { framePixels } from "../forecast/frames";
+import { framePixels, paddedCorners } from "../forecast/frames";
 import { FIRST_ROUTE_LAYER } from "./tripLayers";
 
 const SOURCE = "forecast-heatmap";
@@ -18,23 +18,19 @@ export interface HeatmapLayer {
  */
 export function addHeatmapLayer(map: MapLibreMap, heatmap: Heatmap): HeatmapLayer {
   const canvas = document.createElement("canvas");
-  canvas.width = heatmap.columns;
-  canvas.height = heatmap.rows;
+  // One transparent cell of border on every side, which the map's smoothing fades into.
+  canvas.width = heatmap.columns + 2;
+  canvas.height = heatmap.rows + 2;
   const context = canvas.getContext("2d")!;
   const frames = framePixels(heatmap).map((pixels) => new ImageData(pixels, heatmap.columns, heatmap.rows));
-  context.putImageData(frames[0]!, 0, 0);
+  context.putImageData(frames[0]!, 1, 1);
 
   map.addSource(SOURCE, {
     type: "canvas",
     canvas,
     // Not animated, because that would make the map redraw constantly even when nothing changes.
     animate: false,
-    coordinates: [
-      [heatmap.west, heatmap.north],
-      [heatmap.east, heatmap.north],
-      [heatmap.east, heatmap.south],
-      [heatmap.west, heatmap.south],
-    ],
+    coordinates: paddedCorners(heatmap),
   });
   map.addLayer(
     {
@@ -49,7 +45,7 @@ export function addHeatmapLayer(map: MapLibreMap, heatmap: Heatmap): HeatmapLaye
 
   return {
     showHour(hour) {
-      context.putImageData(frames[hour]!, 0, 0);
+      context.putImageData(frames[hour]!, 1, 1);
       const source = map.getSource(SOURCE) as CanvasSource;
       // Together these copy the canvas to the map exactly once.
       source.play();

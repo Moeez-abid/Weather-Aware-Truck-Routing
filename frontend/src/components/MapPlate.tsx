@@ -16,11 +16,13 @@ interface MapPlateProps {
   children: ReactNode;
   /** Controls that sit below the map, outside its frame. */
   footer?: ReactNode;
+  /** Set half off the plate's top-left corner, like a stamp on a printed plate. */
+  seal?: ReactNode;
   className?: string;
 }
 
 /** Frames the map like a printed plate, with registration marks at its corners. */
-export function MapPlate({ children, footer, className = "" }: MapPlateProps) {
+export function MapPlate({ children, footer, seal, className = "" }: MapPlateProps) {
   return (
     <div className={`flex min-h-0 flex-col p-4 lg:p-8 ${className}`}>
       <div className="relative min-h-0 flex-1">
@@ -35,6 +37,7 @@ export function MapPlate({ children, footer, className = "" }: MapPlateProps) {
             <path d="M8 0v16M0 8h16" strokeWidth="1" />
           </svg>
         ))}
+        {seal}
       </div>
       {footer}
     </div>

@@ -126,7 +126,7 @@ export default function MapView({
     }
     popupRef.current?.remove();
     const element = document.createElement("div");
-    const popup = new Popup({ maxWidth: "20rem", offset: 14 })
+    const popup = new Popup({ maxWidth: "20rem", offset: 14, closeButton: false })
       .setLngLat([checkpoint.lon, checkpoint.lat])
       .setDOMContent(element)
       .addTo(map);
@@ -227,7 +227,11 @@ export default function MapView({
           </p>
         </div>
       )}
-      {openPopup && createPortal(<CheckpointDetail checkpoint={openPopup.checkpoint} />, openPopup.element)}
+      {openPopup &&
+        createPortal(
+          <CheckpointDetail checkpoint={openPopup.checkpoint} onClose={() => popupRef.current?.remove()} />,
+          openPopup.element,
+        )}
     </div>
   );
 }
