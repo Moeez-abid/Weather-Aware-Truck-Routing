@@ -94,7 +94,7 @@ Browser (React, MapLibre)
    ▼
 Django REST API (stateless, no database)
    ├── TomTom Routing API    truck routes with departure time and weight
-   ├── TomTom Search API     address autocomplete (US, Canada, Mexico)
+   ├── TomTom Search API     address autocomplete, worldwide
    └── Open-Meteo API        hourly forecasts, cached for 15 minutes
 ```
 
@@ -216,7 +216,7 @@ cd frontend && npm test
 cd frontend && npm run typecheck
 ```
 
-- **Backend (405 tests):** every risk boundary value and load rule, every ranking tie-break, the route fallback and de-duplication against saved TomTom responses, checkpoint spacing and ETAs, forecast lookup at the ETA, missing-forecast handling, heatmap grid sizing, request validation, request limits and error responses. Tests never call TomTom or Open-Meteo.
+- **Backend (407 tests):** every risk boundary value and load rule, every ranking tie-break, the route fallback and de-duplication against saved TomTom responses, checkpoint spacing and ETAs, forecast lookup at the ETA, missing-forecast handling, heatmap grid sizing, request validation, request limits and error responses. Tests never call TomTom or Open-Meteo.
 - **Frontend (103 tests):** form validation and local-time handling, the API client and its errors, map data, the recommendation reason, heatmap frame drawing, and number formatting.
 
 ## Deployment
@@ -242,7 +242,7 @@ Both parts run on Vercel as two projects from this repository.
 6. **Load rules use the entered load weight.** For truck-legal routing, TomTom receives the load plus an assumed 33,000 lb empty truck, converted to kg.
 7. **ETAs are drive time only.** Mandatory driver rest breaks aren't modeled.
 8. **Trucks are capped at 65 mph.** Without a cap, TomTom assumes road speed limits (up to 78 mph on tested routes), which would read the weather too early on long trips.
-9. **Address search covers the US, Canada and Mexico**, matching the brief's miles and pounds.
+9. **Address search covers every country.** Places outside the US show their country, because many place names repeat across countries (Islamabad, Pakistan and Islamabad, India). Units stay in miles, pounds, mph and inches per hour, as in the brief.
 10. **Forecasts cover 14 days from today.** A trip that would still be driving after that is rejected rather than scored with missing weather.
 11. **Departures up to 15 minutes in the past are accepted,** because the form defaults to the current time. Anything older is rejected.
 12. **Heatmap detail depends on trip length,** to stay within the free weather API's limits. Cells range from about 7 miles on short trips to about 100 miles coast to coast.

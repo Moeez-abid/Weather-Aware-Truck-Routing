@@ -38,7 +38,7 @@ Routes come from TomTom truck routing and weather from Open-Meteo. A cold trip p
 - Some trips have fewer than three distinct routes. The app shows what exists and says so.
 - Departure is entered in the origin's local time, and ETAs are shown in each checkpoint's local time.
 - Forecasts cover 14 days from today. Heatmap hours beyond the forecast are left blank and never shown as Low.
-- Address search covers the US, Canada and Mexico. Units are miles, pounds, mph and inches per hour.
+- Address search covers every country, and places outside the US show their country. Units are miles, pounds, mph and inches per hour.
 - Moving the forecast slider must take under 16 ms per step, with no network request.
 - The brief says to prioritize correctness and clarity over extra features.
 

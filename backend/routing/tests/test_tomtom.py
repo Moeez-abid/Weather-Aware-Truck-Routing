@@ -200,14 +200,48 @@ def test_geocode_parses_a_real_response() -> None:
     assert places[0].position == LatLon(32.7779765, -96.7962148)
 
 
-def test_geocode_request_is_encoded_and_limited_to_north_america() -> None:
+def test_geocode_request_is_encoded_and_searches_every_country_in_english() -> None:
     seen: list[httpx.Request] = []
 
     client_returning({"results": []}, seen=seen).geocode("A/B, TX?")
 
     assert seen[0].url.raw_path.startswith(b"/search/2/geocode/A%2FB%2C%20TX%3F.json?")
     assert seen[0].url.params["typeahead"] == "true"
-    assert seen[0].url.params["countrySet"] == "US,CA,MX"
+    assert seen[0].url.params["language"] == "en-US"
+    assert "countrySet" not in seen[0].url.params
+
+
+def geocode_result(label: str, country_code: str, country: str) -> dict[str, Any]:
+    return {
+        "address": {"freeformAddress": label, "countryCode": country_code, "country": country},
+        "position": {"lat": 1, "lon": 2},
+    }
+
+
+def test_geocode_adds_the_country_outside_the_us() -> None:
+    response = {
+        "results": [
+            geocode_result("Islamabad, Punjab", "PK", "Pakistan"),
+            geocode_result("Islamabad, Madarihat, West Bengal", "IN", "India"),
+            geocode_result("Paris", "FR", "France"),
+            geocode_result("Paris, TX", "US", "United States"),
+        ]
+    }
+
+    places = client_returning(response).geocode("Islamabad")
+
+    assert [place.label for place in places] == [
+        "Islamabad, Punjab, Pakistan",
+        "Islamabad, Madarihat, West Bengal, India",
+        "Paris, France",
+        "Paris, TX",
+    ]
+
+
+def test_geocode_keeps_the_label_when_the_country_is_missing() -> None:
+    result = {"address": {"freeformAddress": "Somewhere"}, "position": {"lat": 1, "lon": 2}}
+
+    assert client_returning({"results": [result]}).geocode("Somewhere")[0].label == "Somewhere"
 
 
 def test_geocode_removes_duplicate_labels() -> None:

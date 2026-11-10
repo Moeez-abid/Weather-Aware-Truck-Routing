@@ -21,7 +21,9 @@ logger = logging.getLogger(__name__)
 
 BASE_URL = "https://api.tomtom.com"
 TIMEOUT_SECONDS = 30
-GEOCODE_COUNTRIES = "US,CA,MX"
+# Search covers every country. English names keep labels readable, such as "Russia" rather
+# than "Rossiya".
+GEOCODE_LANGUAGE = "en-US"
 NO_ROUTE_CODES = {"NO_ROUTE_FOUND", "MAP_MATCHING_FAILURE"}
 
 # TomTom needs the truck's total weight for road limits, but the driver enters only the load.
@@ -35,6 +37,20 @@ TRUCK_MAX_SPEED_KMH = 105
 
 def gross_weight_kg(load_lb: float) -> int:
     return round((load_lb + EMPTY_TRUCK_LB) * KG_PER_LB)
+
+
+def _place_label(address: dict[str, Any]) -> str:
+    """TomTom's address, plus the country for places outside the US.
+
+    TomTom leaves the country out, so Paris, France comes back as just "Paris". Adding it
+    tells apart places with the same name, such as Islamabad in Pakistan and in India. US
+    addresses stay short ("Chicago, IL"), since US trips are the main use.
+    """
+    label = address["freeformAddress"]
+    country = address.get("country")
+    if country and address.get("countryCode") != "US":
+        return f"{label}, {country}"
+    return label
 
 
 def _format_position(position: LatLon) -> str:
@@ -145,12 +161,12 @@ class TomTomClient:
     def geocode(self, query: str, limit: int = 5) -> list[Place]:
         data = self._get(
             f"/search/2/geocode/{quote(query, safe='')}.json",
-            {"typeahead": "true", "limit": limit, "countrySet": GEOCODE_COUNTRIES},
+            {"typeahead": "true", "limit": limit, "language": GEOCODE_LANGUAGE},
         )
         places: dict[str, Place] = {}
         try:
             for result in data["results"]:
-                label = result["address"]["freeformAddress"]
+                label = _place_label(result["address"])
                 position = LatLon(result["position"]["lat"], result["position"]["lon"])
                 places.setdefault(label, Place(label=label, position=position))
         except (KeyError, TypeError):
