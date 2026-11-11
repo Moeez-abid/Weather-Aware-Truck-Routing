@@ -174,6 +174,7 @@ def trip_plan_payload(plan: TripPlan) -> dict[str, Any]:
         "recommended_route_id": plan.recommendation.recommended_route_id,
         "ranked_route_ids": plan.recommendation.ranked_route_ids,
         "routes": [_route_payload(route) for route in plan.routes],
+        "closures_checked": plan.closures_checked,
     }
 
 

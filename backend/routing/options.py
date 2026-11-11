@@ -3,14 +3,20 @@
 TomTom's alternatives come first. Its docs warn that it may return fewer than
 requested, so any shortfall is filled by routing through waypoints placed to
 either side of the trip's midpoint.
+
+TomTom applies road closures planned for the departure time. A closure on the street at the
+origin or destination makes it find no route at all, even though the truck could stop a block
+away: arriving in central Houston on Veterans Day did this. When that happens, the trip is routed
+again without the departure time, and the plan says that closures weren't checked.
 """
 
 import time
 from collections.abc import Callable, Iterator
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
 
-from routing.domain import LatLon, Route, RouteTooComplexError, RoutingError
+from routing.domain import LatLon, NoRouteError, Route, RouteTooComplexError, RoutingError
 from routing.geometry import destination_point, haversine_m, initial_bearing_deg
 
 TARGET_ROUTE_COUNT = 3
@@ -37,7 +43,15 @@ class RouteProvider(Protocol):
         via: LatLon | None = None,
         max_alternatives: int = 0,
         timeout_s: float | None = None,
+        use_departure_time: bool = True,
     ) -> list[Route]: ...
+
+
+@dataclass(frozen=True)
+class RouteOptions:
+    routes: list[Route]
+    # False when no route respected the closures planned for the departure, so they were left out.
+    closures_checked: bool
 
 
 def _road_cells(route: Route) -> set[tuple[int, int]]:
@@ -73,6 +87,41 @@ def detour_waypoints(origin: LatLon, destination: LatLon) -> Iterator[LatLon]:
             yield destination_point(midpoint, bearing + side, trip_m * fraction)
 
 
+def _main_routes(
+    provider: RouteProvider,
+    origin: LatLon,
+    destination: LatLon,
+    departure: datetime,
+    load_lb: float,
+    deadline: float,
+    clock: Callable[[], float],
+    use_departure_time: bool,
+) -> list[Route]:
+    try:
+        return provider.calculate_routes(
+            origin,
+            destination,
+            departure,
+            load_lb,
+            max_alternatives=TARGET_ROUTE_COUNT - 1,
+            timeout_s=deadline - clock(),
+            use_departure_time=use_departure_time,
+        )
+    except RouteTooComplexError:
+        # Alternatives take TomTom far longer to work out. One route is better than none.
+        remaining_s = deadline - clock()
+        if remaining_s < MIN_DETOUR_S:
+            raise
+        return provider.calculate_routes(
+            origin,
+            destination,
+            departure,
+            load_lb,
+            timeout_s=remaining_s,
+            use_departure_time=use_departure_time,
+        )
+
+
 def find_route_options(
     provider: RouteProvider,
     origin: LatLon,
@@ -80,26 +129,25 @@ def find_route_options(
     departure: datetime,
     load_lb: float,
     clock: Callable[[], float] = time.monotonic,
-) -> list[Route]:
+) -> RouteOptions:
     """Return up to three distinct routes, with the provider's best route first."""
     deadline = clock() + ROUTING_BUDGET_S
+    closures_checked = True
     try:
-        main_routes = provider.calculate_routes(
-            origin,
-            destination,
-            departure,
-            load_lb,
-            max_alternatives=TARGET_ROUTE_COUNT - 1,
-            timeout_s=ROUTING_BUDGET_S,
+        main_routes = _main_routes(
+            provider, origin, destination, departure, load_lb, deadline, clock, True
         )
-    except RouteTooComplexError:
-        # Alternatives take TomTom far longer to work out. One route is better than none.
-        remaining_s = deadline - clock()
-        if remaining_s < MIN_DETOUR_S:
+    except NoRouteError as no_route:
+        if deadline - clock() < MIN_DETOUR_S:
             raise
-        main_routes = provider.calculate_routes(
-            origin, destination, departure, load_lb, timeout_s=remaining_s
-        )
+        try:
+            main_routes = _main_routes(
+                provider, origin, destination, departure, load_lb, deadline, clock, False
+            )
+        except RoutingError:
+            # No closure was the cause, so the first answer stands.
+            raise no_route from None
+        closures_checked = False
 
     found = _DistinctRoutes()
     for route in main_routes:
@@ -112,7 +160,13 @@ def find_route_options(
             break
         try:
             detour = provider.calculate_routes(
-                origin, destination, departure, load_lb, via=waypoint, timeout_s=remaining_s
+                origin,
+                destination,
+                departure,
+                load_lb,
+                via=waypoint,
+                timeout_s=remaining_s,
+                use_departure_time=closures_checked,
             )[0]
         except RoutingError:
             # A waypoint can land somewhere undrivable, or the call can run out of time. The
@@ -121,4 +175,4 @@ def find_route_options(
         if detour.duration_s <= longest_allowed_s:
             found.add(detour)
 
-    return found.routes[:TARGET_ROUTE_COUNT]
+    return RouteOptions(found.routes[:TARGET_ROUTE_COUNT], closures_checked)

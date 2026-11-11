@@ -36,6 +36,7 @@ function plan(routes: PlannedRoute[], ranked = routes.map((item) => item.id), re
     recommended_route_id: recommended,
     ranked_route_ids: ranked,
     routes,
+    closures_checked: true,
   };
 }
 

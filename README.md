@@ -30,6 +30,8 @@ The first request after a quiet period can take a few seconds while the backend 
 
 TomTom truck routing is asked for the best route plus 2 alternatives, using the truck's weight and departure time. TomTom sometimes returns fewer, so the app then re-routes through a point offset to each side of the trip's midpoint and keeps only routes that differ meaningfully from the ones it has. Some short trips have no real alternative. The app then shows the routes that exist and says so.
 
+TomTom applies road closures planned for the departure time. A closure on the street at the origin or destination makes it find no route at all, even when the truck could stop a block away: arriving in central Houston on Veterans Day did this. When that happens, the app routes again without the departure time, and the results say that closures couldn't be applied, so the driver should check them. Weather is still read at the ETAs for the entered departure.
+
 Routing has a 40-second budget, because the server stops each request at 60 seconds. Detours are only tried while time is left. Trips across continents, such as London to Karachi, can take TomTom over 30 seconds with alternatives. If TomTom gives up, the app asks again for a single route.
 
 ### 2. Checkpoints and arrival times
@@ -222,7 +224,7 @@ cd frontend && npm test
 cd frontend && npm run typecheck
 ```
 
-- **Backend (453 tests):** every risk boundary value and load rule, every ranking tie-break, the route fallback, de-duplication and time budget against saved TomTom responses, checkpoint spacing, ETAs and the checkpoint limit, forecast lookup at the ETA, missing-forecast handling, heatmap grid sizing and limits, address search ranking, request validation, request limits and error responses. Tests never call TomTom or Open-Meteo.
+- **Backend (461 tests):** every risk boundary value and load rule, every ranking tie-break, the route fallback, the road-closure retry, de-duplication and time budget against saved TomTom responses, checkpoint spacing, ETAs and the checkpoint limit, forecast lookup at the ETA, missing-forecast handling, heatmap grid sizing and limits, address search ranking, request validation, request limits and error responses. Tests never call TomTom or Open-Meteo.
 - **Frontend (103 tests):** form validation and local-time handling, the API client and its errors, map data, the recommendation reason, heatmap frame drawing, and number formatting.
 
 ## Deployment
@@ -255,6 +257,7 @@ Both parts run on Vercel as two projects from this repository.
 13. **Each connection has request limits** (60 trip plans and 60 heatmaps an hour, plus generous limits for address search), so that a public link can't use up the TomTom and Open-Meteo quotas.
 14. **A trip uses at most 450 weather checks** across its routes. That fits three coast-to-coast routes checked every 25 miles. Larger requests are refused, with the interval that would fit.
 15. **Very long trips may get a single route.** When TomTom can't work out alternatives in time, one route is better than none, and the app says that fewer routes exist.
+16. **Road closures can be left out to find a route.** If no route respects the closures planned for the departure, the trip is routed without them and the results say so. A closure is usually one street at the start or end, and refusing the whole trip would be less useful than a warning.
 
 ## Limitations
 

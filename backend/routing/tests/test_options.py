@@ -13,7 +13,13 @@ from routing.domain import (
     TimingPoint,
 )
 from routing.geometry import destination_point, haversine_m, initial_bearing_deg
-from routing.options import MIN_DETOUR_S, ROUTING_BUDGET_S, detour_waypoints, find_route_options
+from routing.options import (
+    MIN_DETOUR_S,
+    ROUTING_BUDGET_S,
+    RouteOptions,
+    detour_waypoints,
+    find_route_options,
+)
 
 ORIGIN = LatLon(40, -100)
 DESTINATION = LatLon(40, -98)
@@ -74,9 +80,16 @@ class FakeProvider:
         via: LatLon | None = None,
         max_alternatives: int = 0,
         timeout_s: float | None = None,
+        use_departure_time: bool = True,
     ) -> list[Route]:
         self.calls.append(
-            {"via": via, "max_alternatives": max_alternatives, "load_lb": load_lb, "timeout_s": timeout_s}
+            {
+                "via": via,
+                "max_alternatives": max_alternatives,
+                "load_lb": load_lb,
+                "timeout_s": timeout_s,
+                "use_departure_time": use_departure_time,
+            }
         )
         self.now += self.seconds_per_call[0 if via is None else 1]
         result = self.first if via is None else self.detours.pop(0)
@@ -85,8 +98,12 @@ class FakeProvider:
         return result if isinstance(result, list) else [result]
 
 
-def options(provider: FakeProvider) -> list[Route]:
+def find(provider: FakeProvider) -> RouteOptions:
     return find_route_options(provider, ORIGIN, DESTINATION, DEPARTURE, 40_000, clock=provider.clock)
+
+
+def options(provider: FakeProvider) -> list[Route]:
+    return find(provider).routes
 
 
 A, B, C, D = (route_on(lat) for lat in (40.0, 41.0, 42.0, 43.0))
@@ -97,7 +114,14 @@ def test_three_distinct_routes_need_no_extra_requests() -> None:
 
     assert options(provider) == [A, B, C]
     assert len(provider.calls) == 1
-    assert provider.calls[0] == {"via": None, "max_alternatives": 2, "load_lb": 40_000, "timeout_s": ROUTING_BUDGET_S}
+    assert provider.calls[0] == {
+        "via": None,
+        "max_alternatives": 2,
+        "load_lb": 40_000,
+        "timeout_s": ROUTING_BUDGET_S,
+        "use_departure_time": True,
+    }
+    assert find(FakeProvider([A, B, C], [])).closures_checked
 
 
 def test_missing_route_is_filled_through_a_waypoint() -> None:
@@ -183,6 +207,14 @@ def test_failure_of_the_main_request_is_raised(error: RoutingError) -> None:
         options(FakeProvider(error, []))
 
 
+def test_a_provider_failure_is_not_retried_without_the_departure_time() -> None:
+    provider = FakeProvider(ProviderError("down"), [])
+
+    with pytest.raises(ProviderError):
+        options(provider)
+    assert len(provider.calls) == 1
+
+
 def test_waypoints_sit_on_both_sides_at_two_distances() -> None:
     waypoints = list(detour_waypoints(ORIGIN, DESTINATION))
     trip_m = haversine_m(ORIGIN, DESTINATION)
@@ -242,5 +274,59 @@ def test_no_retry_when_the_budget_is_spent() -> None:
     provider = TooComplexWithAlternatives([A], [], seconds_per_call=(ROUTING_BUDGET_S, 0.0))
 
     with pytest.raises(RouteTooComplexError):
+        options(provider)
+    assert len(provider.calls) == 1
+
+
+class ClosedAtDeparture(FakeProvider):
+    """Finds no route while closures planned for the departure apply, like a street closed for a
+    parade at the destination."""
+
+    def calculate_routes(self, *args: Any, use_departure_time: bool = True, **kwargs: Any) -> list[Route]:
+        if use_departure_time:
+            self.calls.append({"use_departure_time": True, "via": kwargs.get("via")})
+            self.now += self.seconds_per_call[0]
+            raise NoRouteError("Closed then.")
+        return super().calculate_routes(*args, use_departure_time=use_departure_time, **kwargs)
+
+
+def test_a_trip_blocked_by_closures_is_routed_without_them() -> None:
+    provider = ClosedAtDeparture([A, B], [C])
+
+    result = find(provider)
+
+    assert result.routes == [A, B, C]
+    assert result.closures_checked is False
+    assert [call["use_departure_time"] for call in provider.calls] == [True, False, False]
+    assert provider.calls[2]["via"] is not None
+
+
+def test_closures_stay_checked_when_the_first_request_works() -> None:
+    provider = FakeProvider([A], [B, C])
+
+    assert find(provider).closures_checked is True
+    assert all(call["use_departure_time"] for call in provider.calls)
+
+
+def test_the_closure_retry_gets_the_time_left() -> None:
+    provider = ClosedAtDeparture([A, B, C], [], seconds_per_call=(10.0, 0.0))
+
+    find(provider)
+
+    assert provider.calls[1]["timeout_s"] == ROUTING_BUDGET_S - 10.0
+
+
+def test_the_original_error_stands_when_no_route_exists_either_way() -> None:
+    provider = FakeProvider(NoRouteError("No truck route could be found."), [])
+
+    with pytest.raises(NoRouteError, match="No truck route could be found."):
+        options(provider)
+    assert [call["use_departure_time"] for call in provider.calls] == [True, False]
+
+
+def test_no_closure_retry_when_the_budget_is_spent() -> None:
+    provider = ClosedAtDeparture([A], [], seconds_per_call=(ROUTING_BUDGET_S, 0.0))
+
+    with pytest.raises(NoRouteError):
         options(provider)
     assert len(provider.calls) == 1

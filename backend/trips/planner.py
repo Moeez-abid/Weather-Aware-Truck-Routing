@@ -81,6 +81,8 @@ class TripPlan:
     timezone: str
     routes: list[PlannedRoute]
     recommendation: Recommendation
+    # False when the routes leave out road closures planned for the departure. See routing.options.
+    closures_checked: bool = True
 
 
 def _resolve_departure(
@@ -151,7 +153,8 @@ def plan_trip(
         trip.local_departure, origin_forecast, now or datetime.now(UTC)
     )
 
-    routes = find_route_options(router, trip.origin, trip.destination, departure, trip.load_lb)
+    options = find_route_options(router, trip.origin, trip.destination, departure, trip.load_lb)
+    routes = options.routes
     sampled = [sample_checkpoints(route, trip.interval_miles, departure) for route in routes]
     _check_checkpoint_count(routes, sampled, trip.interval_miles, departure)
     forecasts = weather.forecasts([item.position for item in chain.from_iterable(sampled)])
@@ -170,4 +173,5 @@ def plan_trip(
         timezone=origin_forecast.timezone,
         routes=planned_routes,
         recommendation=recommend([route.summary for route in planned_routes]),
+        closures_checked=options.closures_checked,
     )

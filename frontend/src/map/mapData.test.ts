@@ -37,6 +37,7 @@ function plan(routes: PlannedRoute[]): TripPlan {
     recommended_route_id: "A",
     ranked_route_ids: routes.map((item) => item.id),
     routes,
+    closures_checked: true,
   };
 }
 

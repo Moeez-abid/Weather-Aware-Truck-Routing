@@ -131,6 +131,12 @@ export function TripResults({
             ? recommendationReason(plan)
             : "Every route has miles in No Travel conditions. Try a different departure time."}
         </p>
+        {!plan.closures_checked && (
+          <p className="mt-4 border-l-2 border-ink pl-3 text-sm">
+            Road closures planned for this departure couldn't be applied: with them, no truck route
+            reached the origin or destination. Check for closures near both ends before driving.
+          </p>
+        )}
       </div>
 
       <div>

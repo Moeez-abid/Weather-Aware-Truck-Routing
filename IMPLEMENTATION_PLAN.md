@@ -80,6 +80,8 @@ If every route has No Travel miles, the app says no route is safe at that depart
 
 Request 2 alternatives from TomTom. If fewer than 3 distinct routes come back, re-request through a waypoint offset to each side of the trip's midpoint and keep routes that differ meaningfully from the others. If 3 still can't be found (some short trips have no real alternative), show what exists and say so.
 
+If no route respects the road closures planned for the departure (a closed street at the origin or destination, such as central Houston on Veterans Day), route again without the departure time and tell the user that closures weren't applied.
+
 ### Heatmap (the performance-critical piece)
 
 - Backend builds a grid along the corridor of all routes, spaced evenly in Web Mercator, and sends the risk level per cell for hours 0–48 as one compact payload. Risk is calculated only on the backend, using the same engine and the entered load.
@@ -141,6 +143,7 @@ Each step leaves the project working, with tests passing where there is logic to
 13. **Each connection has request limits** (60 trip plans and 60 heatmaps an hour, plus generous limits for address search), so that a public link can't use up the TomTom and Open-Meteo quotas.
 14. **A trip uses at most 450 weather checks** across its routes. That fits three coast-to-coast routes checked every 25 miles. Larger requests are refused, with the interval that would fit. Added after break-testing showed a 10-mile coast-to-coast trip spending over 1,000 calls.
 15. **Very long trips may get a single route.** Routing has a 40-second budget within the server's 60-second limit, and when TomTom can't work out alternatives in time, the app asks for one route.
+16. **Road closures can be left out to find a route.** When no route respects the closures planned for the departure, the trip is routed without them, and the results say so. Added after Dallas to Houston on Veterans Day found no route because of a closed downtown street.
 
 ## Needed from you
 

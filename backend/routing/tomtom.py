@@ -152,25 +152,29 @@ class TomTomClient:
         via: LatLon | None = None,
         max_alternatives: int = 0,
         timeout_s: float | None = None,
+        use_departure_time: bool = True,
     ) -> list[Route]:
+        """Without the departure time, TomTom leaves out closures and time restrictions planned for
+        then, and uses typical traffic."""
         stops = [origin, destination] if via is None else [origin, via, destination]
         locations = ":".join(_format_position(stop) for stop in stops)
-        data = self._get(
-            f"/routing/1/calculateRoute/{locations}/json",
-            {
-                "travelMode": "truck",
-                "vehicleCommercial": "true",
-                "vehicleWeight": gross_weight_kg(load_lb),
-                "vehicleMaxSpeed": TRUCK_MAX_SPEED_KMH,
-                "departAt": _format_departure(departure),
-                "maxAlternatives": max_alternatives,
-                "traffic": "true",
-                "routeType": "fastest",
-                "instructionsType": "coded",
-                "routeRepresentation": "polyline",
-            },
-            timeout_s,
-        )
+        params: dict[str, Any] = {
+            "travelMode": "truck",
+            "vehicleCommercial": "true",
+            "vehicleWeight": gross_weight_kg(load_lb),
+            "vehicleMaxSpeed": TRUCK_MAX_SPEED_KMH,
+            "maxAlternatives": max_alternatives,
+            "traffic": "true",
+            "routeType": "fastest",
+            "instructionsType": "coded",
+            "routeRepresentation": "polyline",
+        }
+        if use_departure_time:
+            params["departAt"] = _format_departure(departure)
+        else:
+            # Live traffic is for now, not for the trip's departure.
+            params["traffic"] = "false"
+        data = self._get(f"/routing/1/calculateRoute/{locations}/json", params, timeout_s)
         try:
             routes = [_parse_route(raw) for raw in data["routes"]]
         except (KeyError, TypeError, ValueError):

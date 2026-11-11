@@ -67,6 +67,7 @@ def test_returns_routes_with_summaries_and_checkpoints() -> None:
     assert plan["timezone"] == "America/Chicago"
     assert plan["recommended_route_id"] == "A"
     assert plan["ranked_route_ids"] == ["A"]
+    assert plan["closures_checked"] is True
 
     route = plan["routes"][0]
     assert route["id"] == "A"
@@ -230,6 +231,24 @@ def test_missing_route_is_unprocessable(router: MagicMock) -> None:
 
     assert response.status_code == 422
     assert response.json() == {"error": "No truck route could be found."}
+
+
+class ClosedAtDepartureRouter(FakeRouter):
+    def calculate_routes(self, *args: Any, use_departure_time: bool = True, **kwargs: Any) -> list[Route]:
+        if use_departure_time:
+            raise NoRouteError("No truck route could be found.")
+        return super().calculate_routes(*args, **kwargs)
+
+
+@pytest.mark.usefixtures("router", "weather")
+def test_a_trip_blocked_by_closures_at_departure_says_they_were_not_checked(router: MagicMock) -> None:
+    router.return_value = ClosedAtDepartureRouter([straight_route(60, 2)])
+
+    response = post(body())
+
+    assert response.status_code == 200
+    assert response.json()["closures_checked"] is False
+    assert response.json()["routes"][0]["distance_miles"] == 60
 
 
 @pytest.mark.usefixtures("router")

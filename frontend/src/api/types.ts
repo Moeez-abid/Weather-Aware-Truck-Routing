@@ -60,6 +60,8 @@ export interface TripPlan {
   recommended_route_id: string | null;
   ranked_route_ids: string[];
   routes: PlannedRoute[];
+  /** False when no route respected the road closures planned for the departure, so they were left out. */
+  closures_checked: boolean;
 }
 
 export interface HeatmapRequest {

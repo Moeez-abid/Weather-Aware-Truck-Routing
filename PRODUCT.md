@@ -36,6 +36,7 @@ Routes come from TomTom truck routing and weather from Open-Meteo. A cold trip p
 - Risk levels, worst to best: No Travel, Severe, High, Moderate, Low.
 - Ranking: fewest No Travel miles, fewest Severe miles, fewest High miles, lowest average risk, shortest travel time. If every route has No Travel miles, no route is recommended.
 - Some trips have fewer than three distinct routes. The app shows what exists and says so.
+- If no route respects the road closures planned for the departure, routes are shown without them, with a warning to check closures near both ends.
 - Departure is entered in the origin's local time, and ETAs are shown in each checkpoint's local time.
 - Forecasts cover 14 days from today. Heatmap hours beyond the forecast are left blank and never shown as Low.
 - Address search covers every country, and places outside the US show their country. Units are miles, pounds, mph and inches per hour.

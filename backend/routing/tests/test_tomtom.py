@@ -116,6 +116,16 @@ def test_departure_is_converted_to_utc() -> None:
     assert seen[0].url.params["departAt"] == "2026-11-10T15:30:00Z"
 
 
+def test_routing_without_the_departure_time_leaves_out_departat_and_live_traffic() -> None:
+    seen: list[httpx.Request] = []
+
+    route_call(client_returning(fixture("tomtom_routes"), seen=seen), use_departure_time=False)
+
+    assert "departAt" not in seen[0].url.params
+    assert seen[0].url.params["traffic"] == "false"
+    assert seen[0].url.params["travelMode"] == "truck"
+
+
 def test_departure_without_timezone_is_rejected() -> None:
     with pytest.raises(ValueError):
         client_returning(fixture("tomtom_routes")).calculate_routes(
